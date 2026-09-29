@@ -5,6 +5,6 @@
   "beta": {
     "version": "1.6.0",
     "name": "Grape",
-    "notes": "### Apple devices\n- **Handoff** between your iPhone, iPad and Mac.\n- **Widgets:** Search, Favorites and Reading List; Lock Screen and Control Center buttons.\n- **Share sheet:** Fruitfox is in every app's share sheet.\n- **Quick actions** on the app icon, and download progress on the Lock Screen and in the Dynamic Island.\n- **Siri and Shortcuts:** new tabs, search, open pages, Reader, Translate, Send Page, Sleep Timer and more.\n- Read-aloud on the Lock Screen, AirPods and Apple Watch.\n- Notification buttons, Spotlight bookmarks, Focus filters.\n\n### Improved\n- **Renewal reminder** before Fruitfox expires, and the Renew By date in Settings.\n- Release names: this one is **Grape**."
+    "notes": "### Apple devices\n- **Handoff** between your iPhone, iPad and Mac.\n- **Widgets:** Search, Favorites and Reading List; Lock Screen and Control Center buttons.\n- **Share sheet:** Fruitfox is in every app's share sheet.\n- **Apple Wallet:** boarding passes and tickets from websites go straight to Wallet.\n- **Quick actions** on the app icon, and download progress on the Lock Screen and in the Dynamic Island.\n- **Siri and Shortcuts:** new tabs, search, open pages, Reader, Translate, Send Page, Sleep Timer and more.\n- Read-aloud on the Lock Screen, AirPods and Apple Watch.\n- Notification buttons, Spotlight bookmarks, Focus filters.\n\n### Improved\n- **Renewal reminder** before Fruitfox expires, and the Renew By date in Settings.\n- Release names: this one is **Grape**."
   }
 }
