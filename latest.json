@@ -1,1 +1,8 @@
-{"version": "1.3.0", "notes": "Update check (this alert), and in the reader: pick the voice and speed, follow the highlighted sentence, and tap a sentence to read from there."}
+{
+  "version": "1.3.0",
+  "notes": "### New\n- **Update check**: Fruitfox tells you when a new version is out.\n- **Tap to jump** in the reader: while reading aloud, tap a sentence to carry on from there.\n\n### Reader\n- Pick the voice and speed right in the reader; the sentence being read is highlighted and kept in view.\n- Picking a voice in Settings plays a short sample.",
+  "beta": {
+    "version": "1.4.0",
+    "notes": "### New\n- **Download Page**: save any page as a PDF or web archive, from the page menu.\n- **Website notifications** from sites you allow, and tabs sent from Firefox arrive with a notification.\n\n### Settings\n- Reorganized into pages, like iOS Settings. Search still finds every setting.\n- Live previews of the reader and caption styles.\n\n### Reader and video\n- Twelve fonts and text size from the **aA** button; Find and Translate in the reader.\n- Speed sliders, and the video follows the scrubber while you drag.\n\n### Downloads\n- Dates, sizes, why a download failed, and a note when a file was deleted.\n- Touch and hold or swipe: Open, Show in Folder, Remove from List, Delete.\n\n### Privacy\n- Face ID for hidden sites, hidden suggestions and watched pages."
+  }
+}
