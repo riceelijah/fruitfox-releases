@@ -1,5 +1,10 @@
 {
   "version": "1.6.0",
   "name": "Grape",
-  "notes": "### Apple devices\n- **Handoff** between your iPhone, iPad and Mac.\n- **Widgets:** Search, Favorites and Reading List; Lock Screen and Control Center buttons.\n- **Share sheet:** Fruitfox is in every app's share sheet.\n- **Apple Wallet:** boarding passes and tickets from websites go straight to Wallet.\n- **Quick actions** on the app icon, and download progress on the Lock Screen and in the Dynamic Island.\n- **Siri and Shortcuts:** new tabs, search, open pages, Reader, Translate, Send Page, Sleep Timer and more.\n- Read-aloud on the Lock Screen, AirPods and Apple Watch.\n- Notification buttons, Spotlight bookmarks, Focus filters.\n\n### Improved\n- **Renewal reminder** before Fruitfox expires, and the Renew By date in Settings.\n- Release names: this one is **Grape**."
+  "notes": "### Apple devices\n- **Handoff** between your iPhone, iPad and Mac.\n- **Widgets:** Search, Favorites and Reading List; Lock Screen and Control Center buttons.\n- **Share sheet:** Fruitfox is in every app's share sheet.\n- **Apple Wallet:** boarding passes and tickets from websites go straight to Wallet.\n- **Quick actions** on the app icon, and download progress on the Lock Screen and in the Dynamic Island.\n- **Siri and Shortcuts:** new tabs, search, open pages, Reader, Translate, Send Page, Sleep Timer and more.\n- Read-aloud on the Lock Screen, AirPods and Apple Watch.\n- Notification buttons, Spotlight bookmarks, Focus filters.\n\n### Improved\n- **Renewal reminder** before Fruitfox expires, and the Renew By date in Settings.\n- Release names: this one is **Grape**.",
+  "beta": {
+    "version": "2.0.0",
+    "name": "Honeydew",
+    "notes": "### iPad\n- **Multiple windows:** open another Fruitfox window from ⋯ › New Tab › Window, ⌘N, or a link's menu. Side by side or in Stage Manager, each with its own tab.\n\n### Mac\n- **Fruitfox for the Mac** (in progress): a desktop browser laid out like Firefox, with tabs, windows, the menu bar and keyboard shortcuts. It can be your Mac's default browser."
+  }
 }
