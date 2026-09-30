@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<main id="list" class="list"><div class="spinner"></div></main>
+<script>
+// Messages: your conversations, newest first; unread ones in bold.
+const row = t => {
+  const others = (t.users || []).filter(u => u.id !== t.viewer_id), last = t.slide_messages?.edges?.[0]?.node;
+  const unread = t.marked_as_unread || (last && last.sender_fbid !== t.viewer?.interop_messaging_user_fbid
+    && !(t.slide_read_receipts || []).some(r => r.participant_fbid === t.viewer?.interop_messaging_user_fbid && +r.watermark_timestamp_ms >= +last.timestamp_ms));
+  return `<div class="cell row tappable" data-thread="${esc(t.thread_fbid)}" data-title="${esc(t.thread_title)}">
+    <img alt="" class="avatar" style="width:52px;height:52px" src="${esc(pic(others[0]))}">
+    <div class="grow"><div class="ellipsis ${unread ? 'headline' : ''}">${esc(t.thread_title || others.map(u => u.username).join(', '))}</div>
+      <div class="small ellipsis ${unread ? '' : 'secondary'}">${esc(last?.text_body || last?.igd_snippet || '')} · ${last ? ago(last.timestamp_ms / 1000) : ''}</div></div>
+    ${unread ? '<span style="width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none"></span>' : ''}</div>`;
+};
+async function load() {
+  await guard($('#list'), async () => {
+    const box = await ig.inbox();
+    const threads = (box?.threads_by_folder?.edges || []).map(e => e.node.as_ig_direct_thread).filter(Boolean);
+    $('#list').innerHTML = threads.map(row).join('') || '<div class="center secondary">No messages</div>';
+  });
+}
+$('#list').addEventListener('click', e => { const t = e.target.closest('[data-thread]'); if (t) fruitfox.ui.push('thread.html?id=' + t.dataset.thread, t.dataset.title); });
+fruitfox.on('refresh', load);
+load();
+</script>

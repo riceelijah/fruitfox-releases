@@ -1,0 +1,94 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<style>
+  html, body { background: #000; color: #fff; height: 100%; margin: 0; }
+  #reels { height: 100%; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; }
+  .reel { height: 100%; scroll-snap-align: start; position: relative; padding: 0 !important; border: 0 !important; }
+  .reel .media { height: 100%; }
+  .reel video { width: 100%; height: 100%; object-fit: contain; }
+  /* A soft fade at the bottom keeps the caption and buttons readable on any video. */
+  .reel::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 40%; pointer-events: none;
+    background: linear-gradient(transparent, rgb(0 0 0 / .55)); }
+  .info, .side { z-index: 1; }
+  .info { position: absolute; left: 14px; right: 72px; bottom: calc(env(safe-area-inset-bottom) + 18px); text-shadow: 0 1px 3px #0009; }
+  .info .headline { font-weight: 600; }
+  .side { position: absolute; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 18px); display: flex; flex-direction: column; gap: 14px; align-items: center; }
+  .side > div { display: flex; flex-direction: column; align-items: center; gap: 2px; font: -apple-system-caption1; font-weight: 600; text-shadow: 0 1px 3px #0009; }
+  .side button { color: #fff; padding: 4px; filter: drop-shadow(0 1px 3px #0008); }
+  .side button.like.on { color: var(--like); }
+  .side svg { width: 30px; height: 30px; }
+  #close { position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 12px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: 0;
+    background: rgb(0 0 0 / .35); color: #fff; font-size: 17px; -webkit-backdrop-filter: blur(20px); }
+  .reel .caption-text a { color: #fff; font-weight: 600; }
+  /* Comments over a reel, like Instagram's: the video shrinks into the top, the comments slide up below it. */
+  .reel .media { transition: transform .45s cubic-bezier(.3, 1.1, .4, 1); transform-origin: 50% 0; }
+  .info, .side, .reel::after { transition: opacity .25s; }
+  body.commenting #reels { overflow: hidden; }
+  body.commenting .current .media { transform: translateY(calc(env(safe-area-inset-top) + 8px)) scale(.36); }
+  body.commenting .info, body.commenting .side, body.commenting .reel::after, body.commenting #close { opacity: 0; pointer-events: none; }
+  #sheet { position: fixed; left: 0; right: 0; bottom: 0; height: 60%; z-index: 3; color: var(--fg); background: var(--bg2);
+    border-radius: 22px 22px 0 0; display: flex; flex-direction: column; transform: translateY(105%);
+    transition: transform .45s cubic-bezier(.3, 1.1, .4, 1); box-shadow: 0 -8px 30px rgb(0 0 0 / .3); }
+  body.commenting #sheet { transform: none; }
+  #sheet .grab { padding: 8px 0 6px; display: grid; place-items: center; touch-action: none; }
+  #sheet .grab i { width: 38px; height: 5px; border-radius: 3px; background: var(--sep); }
+  #sheet .grab b { font: -apple-system-subheadline; font-weight: 600; margin-top: 8px; }
+  #sheet .body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+</style>
+<button id="close" aria-label="Close">✕</button>
+<div id="reels"><div class="spinner"></div></div>
+<div id="sheet"><div class="grab"><i></i><b>Comments</b></div><div class="body"></div></div>
+<script>
+// Reels, one at a time: swipe up for the next, tap to pause, double tap to like.
+const reels = new Map();
+let next = null;
+const view = m => `<div class="reel post" data-id="${esc(m.id)}" data-pk="${esc(m.pk)}"><div class="media"><video playsinline loop preload="none" poster="${esc(best(m))}" src="${esc(m.video_versions?.[0]?.url)}"></video>
+  <div class="burst">${icon('heart', true)}</div></div>
+  <div class="info"><div class="row"><img alt="" class="avatar" style="width:32px;height:32px" src="${esc(pic(m.user))}" data-user="${esc(m.user?.username)}" data-uid="${esc(m.user?.pk)}">
+    <span class="headline" data-user="${esc(m.user?.username)}" data-uid="${esc(m.user?.pk)}">${esc(m.user?.username)}</span></div>
+    ${m.caption?.text ? `<div class="small caption-text clamped" style="margin-top:6px">${rich(m.caption.text)}</div>` : ''}</div>
+  <div class="side">
+    <div><button class="icon-button like ${m.has_liked ? 'on' : ''}" aria-label="Like">${icon('heart', m.has_liked)}</button>${m.like_and_view_counts_disabled ? '' : count(m.like_count)}</div>
+    <div><button class="icon-button comments" aria-label="Comments">${icon('bubble')}</button>${count(m.comment_count)}</div>
+    <div><button class="icon-button share" aria-label="Share">${icon('send')}</button></div>
+    <div><button class="icon-button save ${m.has_viewer_saved ? 'on' : ''}" aria-label="Save">${icon('bookmark', m.has_viewer_saved)}</button></div>
+  </div></div>`;
+async function page(after) {
+  const r = await ig.reels(after);
+  next = r.next;
+  r.items.forEach(m => reels.set(m.id, m));
+  return r.items.map(view).join('');
+}
+guard($('#reels'), async () => { $('#reels').innerHTML = await page(); play(); });
+function play() {
+  const i = Math.round($('#reels').scrollTop / innerHeight);
+  document.querySelectorAll('.reel video').forEach((v, j) => j === i ? v.play().catch(() => {}) : v.pause());
+}
+$('#reels').addEventListener('scroll', async () => {
+  clearTimeout(play.t); play.t = setTimeout(play, 120);
+  if (next && $('#reels').scrollTop + innerHeight * 3 > $('#reels').scrollHeight && !page.busy) {
+    page.busy = true; try { $('#reels').insertAdjacentHTML('beforeend', await page(next)); } finally { page.busy = false; }
+  }
+});
+// Reels reuse the feed's taps (like, comments, share, double tap); a single tap mutes or unmutes.
+wirePosts($('#reels'), id => reels.get(id), view);
+$('#close').onclick = () => fruitfox.ui.back();
+
+// Comments open over the reel (wirePosts calls showComments); drag the panel down, or tap the video, to close.
+const current = () => document.querySelectorAll('.reel')[Math.round($('#reels').scrollTop / innerHeight)];
+function showComments(m) {
+  document.querySelectorAll('.reel.current').forEach(r => r.classList.remove('current'));
+  current()?.classList.add('current');
+  commentsView($('#sheet .body'), m.pk, m.user?.pk);
+  document.body.classList.add('commenting');
+}
+function hideComments() { document.body.classList.remove('commenting'); document.activeElement?.blur(); $('#sheet').style.transform = ''; }
+$('#reels').addEventListener('click', e => { if (document.body.classList.contains('commenting')) { e.stopImmediatePropagation(); hideComments(); } }, true);
+let dragY = null;
+$('#sheet .grab').addEventListener('pointerdown', e => { dragY = e.clientY; $('#sheet').style.transition = 'none'; });
+addEventListener('pointermove', e => { if (dragY != null) $('#sheet').style.transform = `translateY(${Math.max(0, e.clientY - dragY)}px)`; });
+addEventListener('pointerup', e => {
+  if (dragY == null) return;
+  const dy = e.clientY - dragY; dragY = null; $('#sheet').style.transition = '';
+  if (dy > 90) hideComments(); else $('#sheet').style.transform = '';
+});
+</script>

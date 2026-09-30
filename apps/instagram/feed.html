@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<div class="tray" id="tray"></div>
+<main id="feed"><div class="spinner"></div></main>
+<script>
+// Home: stories, then posts from people you follow (newest first, no ads, suggestions or Reels unless Settings say so).
+const posts = new Map();
+let next = null, s;
+
+async function page(maxId) {
+  const r = await ig.timeline(maxId);
+  next = r.more_available ? r.next_max_id : null;
+  let items = (r.feed_items || []).map(i => i.media_or_ad).filter(m => m && !isAd(m));
+  if (s.hideSuggested) items = items.filter(m => m.user?.friendship_status?.following !== false);
+  if (s.hideReels) items = items.filter(m => !isReel(m));
+  if (s.newestFirst) items.sort((a, b) => b.taken_at - a.taken_at);
+  items.forEach(m => posts.set(m.id, m));
+  return items.map(m => postView(m, s)).join('');
+}
+
+async function tray() {
+  const r = await ig.tray();
+  $('#tray').innerHTML = (r.tray || []).filter(t => t.user).map(t => `<div class="tappable ${t.seen >= t.latest_reel_media ? 'seen' : ''}" data-reel="${esc(t.id)}">
+    <img alt="" class="avatar ring" src="${esc(pic(t.user))}"><div class="caption ellipsis">${esc(t.user.username)}</div></div>`).join('');
+}
+
+async function load() {
+  s = await settings();
+  fruitfox.ui.buttons([
+    ...(s.hideReels ? [] : [{ id: 'reels', symbol: 'play.rectangle', title: 'Reels' }]),
+    { id: 'activity', symbol: 'heart', title: 'Activity' },
+    { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' },
+  ]);
+  const feed = $('#feed');
+  await guard(feed, async () => { tray().catch(() => {}); feed.innerHTML = await page(); });
+}
+
+$('#tray').addEventListener('click', e => {
+  const t = e.target.closest('[data-reel]');
+  if (!t) return;
+  // From this person on through the rest of the tray.
+  const all = [...document.querySelectorAll('#tray [data-reel]')];
+  t.classList.add('seen');
+  fruitfox.ui.cover(`story.html?ids=${all.map(x => x.dataset.reel).join(',')}&i=${all.indexOf(t)}`);
+});
+wirePosts($('#feed'), id => posts.get(id));
+onNearEnd(async () => { if (next) $('#feed').insertAdjacentHTML('beforeend', await page(next)); });
+fruitfox.on('refresh', load);
+fruitfox.on('button', id => {
+  if (id === 'settings') fruitfox.ui.sheet('settings.html', 'Settings');
+  if (id === 'activity') fruitfox.ui.push('activity.html', 'Activity');
+  if (id === 'reels') fruitfox.ui.cover('reels.html');
+});
+load();
+</script>

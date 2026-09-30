@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<main id="msgs" class="msgs"><div class="spinner"></div></main>
+<div class="pad" style="position:sticky;bottom:0;background:var(--bg)"><button class="button" id="reply" style="width:100%">Reply</button></div>
+<script>
+// One conversation (?id=thread_fbid), oldest at the top. Reading doesn't mark it as seen.
+let t;
+/// A message by its kind: text, a shared post or reel (a card that opens it), a notice ("Liked a message"), a
+/// view-once photo; hearts on it show underneath.
+function message(m, mine) {
+  const c = m.content || {}, x = c.xma, side = mine ? 'mine' : '';
+  const hearts = m.msg_reactions?.length ? `<div class="small" style="align-self:${mine ? 'flex-end' : 'flex-start'};margin-top:-6px">❤️${m.msg_reactions.length > 1 ? ' ' + m.msg_reactions.length : ''}</div>` : '';
+  if (c.__typename === 'SlideMessageAdminText') return `<div class="caption secondary" style="text-align:center;padding:4px">${esc((c.text_fragments || []).map(f => f.plaintext).join(''))}</div>`;
+  if (x) {
+    const img = x.preview_image?.url || x.xmaPreviewImage?.url, tall = (x.preview_image?.height || 1) > (x.preview_image?.width || 1);
+    return `<div class="card ${side}" data-target="${esc(x.target_id || '')}" data-url="${esc(x.target_url || '')}">
+      ${x.header_title_text ? `<div class="row small" style="padding:8px 10px"><img alt="" class="avatar" style="width:24px;height:24px" src="${esc(fruitfox.media(x.header_icon?.url))}"><b>${esc(x.header_title_text)}</b></div>` : ''}
+      ${img ? `<img alt="" src="${esc(fruitfox.media(img))}" style="width:100%;${tall ? 'aspect-ratio:4/5' : ''};object-fit:cover">` : ''}
+      ${x.title_text || c.xma_text_body ? `<div class="small" style="padding:8px 10px">${rich(x.title_text || c.xma_text_body)}</div>` : ''}
+    </div>` + hearts;
+  }
+  if (m.content_type?.startsWith('RAVEN')) return `<div class="bubble ${side} secondary">View-once ${m.content_type.includes('VIDEO') ? 'video' : 'photo'} · open on instagram.com</div>` + hearts;
+  const text = m.text_body || c.text_body || m.igd_snippet;
+  return (text ? `<div class="bubble ${side}">${rich(text)}</div>` : `<div class="bubble ${side} secondary">${esc(m.content_type?.toLowerCase().replace(/_/g, ' ') || 'Message')}</div>`) + hearts;
+}
+guard($('#msgs'), async () => {
+  t = await ig.thread(fruitfox.params.id);
+  const mine = t.viewer?.interop_messaging_user_fbid;
+  const msgs = (t.slide_messages?.edges || []).map(e => e.node).reverse();
+  $('#msgs').innerHTML = msgs.map(m => message(m, m.sender_fbid === mine)).join('') || '<div class="center secondary">No messages</div>';
+  scrollTo(0, document.body.scrollHeight);
+});
+// Instagram sends messages over a live binary connection an app page can't open, so replying happens on the
+// conversation's instagram.com page, in a sheet; the conversation reloads when it closes.
+$('#reply').onclick = async () => { await fruitfox.ui.web(IG + '/direct/t/' + (t?.thread_id || '')); location.reload(); };
+$('#msgs').addEventListener('click', e => {
+  if (openLink(e)) return;
+  const card = e.target.closest('.card'); if (!card) return;
+  // Posts and reels open in the app; anything else in the browser.
+  if (card.dataset.target && /instagram\.com\/(p|reel)\//.test(card.dataset.url)) fruitfox.ui.push('post.html?id=' + card.dataset.target, 'Post');
+  else if (card.dataset.url) fruitfox.ui.open(card.dataset.url);
+});
+</script>

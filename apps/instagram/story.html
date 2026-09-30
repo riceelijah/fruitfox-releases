@@ -1,0 +1,108 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<style>
+  html, body { background: #000; color: #fff; height: 100%; overflow: hidden; touch-action: none; }
+  #box { position: fixed; left: 0; right: 0; top: 50%; transform: translateY(-50%); aspect-ratio: 9 / 16; max-height: 100%; margin: auto; cursor: pointer;
+    transition: transform .25s, opacity .25s; }
+  #box img, #box video { width: 100%; height: 100%; object-fit: cover; }
+  #bars { position: fixed; top: calc(env(safe-area-inset-top) + 6px); left: 8px; right: 8px; display: flex; gap: 3px; z-index: 2; }
+  #bars div { flex: 1; height: 2.5px; background: rgb(255 255 255 / .35); border-radius: 2px; overflow: hidden; }
+  #bars i { display: block; height: 100%; width: 0; background: #fff; }
+  #who { position: fixed; top: calc(env(safe-area-inset-top) + 18px); left: 12px; right: 12px; z-index: 2; text-shadow: 0 1px 3px #0008; }
+  .sticker { position: absolute; transform: translate(-50%, -50%); border-radius: 12px; }
+  .sticker:active { background: rgb(255 255 255 / .25); }
+  #cta { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 76px); left: 50%; transform: translateX(-50%); z-index: 2; }
+  #bar { position: fixed; left: 12px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 12px); z-index: 2; gap: 8px; }
+  #reply { text-align: left; font: -apple-system-subheadline; color: #fff; background: none; border: 1px solid rgb(255 255 255 / .6); border-radius: 999px; padding: 11px 16px; }
+  #heart { color: #fff; } #heart.on { color: var(--like); } #heart svg { width: 30px; height: 30px; }
+</style>
+<div id="bars"></div>
+<div id="who" class="row"></div>
+<div id="box"><div class="spinner"></div></div>
+<button id="cta" class="button" hidden>Open Link</button>
+<div id="bar" class="row"><button id="reply" class="grow">Send message</button><button id="heart" class="icon-button" aria-label="Like story"></button></div>
+<script>
+// Stories, full screen: tap right for next, left for back, hold to pause, swipe down to close. Carries on through the
+// next people's stories (?ids=a,b,c&i=0). Links, mentions and shared posts on a story can be tapped.
+// Stories you watch here aren't marked as seen.
+const ids = (fruitfox.params.ids || fruitfox.params.id).split(','), box = $('#box');
+let myId; me().then(x => myId = x);
+const heart = () => { const on = !!items[i]?.has_liked; $('#heart').classList.toggle('on', on); $('#heart').innerHTML = icon('heart', on); };
+let reel = parseInt(fruitfox.params.i || '0'), items = [], i = 0, bar, owner;
+
+const unwrap = u => { try { const x = new URL(u); return x.hostname === 'l.instagram.com' ? x.searchParams.get('u') || u : u; } catch { return u; } };
+function stickers(it) {
+  const at = (s, attrs) => `<div class="sticker" ${attrs} style="left:${s.x * 100}%;top:${s.y * 100}%;width:${Math.max(s.width, .15) * 100}%;height:${Math.max(s.height, .05) * 100}%;rotate:${(s.rotation || 0) * 360}deg"></div>`;
+  return [
+    ...(it.story_link_stickers || []).map(s => at(s, `data-link="${esc(unwrap(s.story_link?.url))}"`)),
+    ...(it.reel_mentions || []).map(s => at(s, `data-user="${esc(s.user?.username)}" data-uid="${esc(s.user?.pk)}"`)),
+    ...(it.story_bloks_stickers || []).filter(s => s.bloks_sticker?.sticker_data?.ig_mention).map(s => at(s, `data-user="${esc(s.bloks_sticker.sticker_data.ig_mention.username)}"`)),
+    ...(it.story_feed_media || []).map(s => at(s, `data-post="${esc(String(s.media_id).split('_')[0])}"`)),
+  ].join('');
+}
+
+async function loadReel(k, fromEnd) {
+  if (k < 0) return show(0);
+  if (k >= ids.length) return fruitfox.ui.back();
+  reel = k;
+  box.innerHTML = '<div class="spinner"></div>';
+  const r = await ig.stories(ids[k]);
+  const rm = r.reels?.[ids[k]] || r.reels_media?.[0];
+  items = rm?.items || [];
+  owner = rm?.user;
+  $('#who').innerHTML = `<img alt="" class="avatar" style="width:32px;height:32px" src="${esc(pic(owner))}" data-user="${esc(owner?.username)}" data-uid="${esc(owner?.pk)}">
+    <b data-user="${esc(owner?.username)}" data-uid="${esc(owner?.pk)}">${esc(owner?.username)}</b><span class="small" id="when"></span>`;
+  $('#bars').innerHTML = items.map(() => '<div><i></i></div>').join('');
+  if (!items.length) return loadReel(k + 1);
+  show(fromEnd ? items.length - 1 : 0);
+}
+
+function show(n) {
+  if (n >= items.length) return loadReel(reel + 1);
+  if (n < 0) return reel > 0 ? loadReel(reel - 1, true) : show(0);
+  i = n; bar?.cancel();
+  const it = items[i], bars = document.querySelectorAll('#bars i');
+  bars.forEach((b, j) => b.style.width = j < i ? '100%' : '0');
+  $('#when').textContent = ' · ' + ago(it.taken_at);
+  box.innerHTML = (it.video_versions ? `<video playsinline autoplay src="${esc(it.video_versions[0].url)}"></video>` : `<img alt="" src="${esc(best(it))}">`) + stickers(it);
+  heart();
+  $('#bar').hidden = !owner || String(owner.pk) === String(myId);
+  const cta = it.story_cta?.[0]?.links?.[0]?.webUri;
+  $('#cta').hidden = !cta; $('#cta').dataset.link = cta ? unwrap(cta) : '';
+  bar = bars[i].animate([{ width: '0%' }, { width: '100%' }], { duration: (it.video_duration || 5) * 1000, fill: 'forwards' });
+  bar.onfinish = () => show(i + 1);
+}
+
+// Taps, holds and the swipe down, with pointer events (iOS doesn't send clicks from plain elements).
+let down, held, holdTimer;
+const pause = on => { const v = box.querySelector('video'); if (on) { bar?.pause(); v?.pause(); } else { bar?.play(); v?.play(); } };
+addEventListener('pointerdown', e => { down = e; held = false; holdTimer = setTimeout(() => { held = true; pause(true); }, 220); });
+addEventListener('pointermove', e => {
+  if (!down) return;
+  const dy = Math.max(0, e.clientY - down.clientY);
+  if (dy > 10) { clearTimeout(holdTimer); if (!held) { held = true; pause(true); } }
+  box.style.transform = `translateY(calc(-50% + ${dy}px)) scale(${1 - dy / 2000})`; box.style.transition = 'none';
+});
+addEventListener('pointerup', e => {
+  clearTimeout(holdTimer);
+  const dy = e.clientY - (down?.clientY ?? e.clientY), target = e.target;
+  down = null; box.style.transition = ''; box.style.transform = '';
+  if (dy > 120) return fruitfox.ui.back();
+  if (held) return pause(false);
+  if (target.closest('#heart')) {
+    const it = items[i], on = !it.has_liked; it.has_liked = on; heart(); fruitfox.ui.haptic(on ? 'success' : 'light');
+    return ig.likeStory(it.pk, on).catch(err => { it.has_liked = !on; heart(); fruitfox.ui.toast(err.message); });
+  }
+  if (target.closest('#reply')) {
+    // Replies are messages, which Instagram sends over a connection an app page can't open: reply on the story's page.
+    pause(true);
+    return fruitfox.ui.web(`${IG}/stories/${owner.username}/${items[i].pk}/`).then(() => pause(false));
+  }
+  const link = target.closest('[data-link]')?.dataset.link, post = target.closest('[data-post]')?.dataset.post;
+  if (link) return fruitfox.ui.open(link);
+  if (post) return fruitfox.ui.push('post.html?id=' + post, 'Post');
+  if (target.closest('[data-user]')) return openProfile({ target });
+  fruitfox.ui.haptic('select');
+  show(e.clientX > innerWidth / 3 ? i + 1 : i - 1);
+});
+guard(box, () => loadReel(reel));
+</script>

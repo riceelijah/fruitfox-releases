@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<div class="list inset" id="list"></div>
+<div class="list inset"><label class="cell row"><span class="grow">Daily Limit</span>
+  <select id="limit" style="font:inherit;color:var(--fg2);background:none;border:0">
+    <option value="0">Off</option><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option>
+    <option value="60">1 hour</option><option value="90">1½ hours</option><option value="120">2 hours</option></select></label></div>
+<p class="pad small secondary" id="used"></p>
+<p class="pad small secondary">Instagram doesn’t offer apps like this one. This uses instagram.com’s own website API while you’re signed in, so Instagram can change it, and it may ask you to confirm it’s you if it sees unusual activity.</p>
+<script>
+const labels = { newestFirst: 'Newest First', hideSuggested: 'Hide Suggested Posts', hideReels: 'Hide Reels', hideLikes: 'Hide Like Counts', igColors: 'Instagram Colors' };
+settings().then(async s => {
+  $('#list').innerHTML = Object.entries(labels).map(([k, l]) => `<label class="cell row"><span class="grow">${l}</span><input type="checkbox" data-k="${k}" ${s[k] ? 'checked' : ''}></label>`).join('');
+  $('#list').onchange = e => {
+    s[e.target.dataset.k] = e.target.checked; fruitfox.storage.set('settings', s); fruitfox.ui.haptic('select');
+    if (e.target.dataset.k === 'igColors') applyColors();
+    fruitfox.ui.toast('Pull down on a page to see the change');
+  };
+  $('#limit').value = String(s.limit);
+  $('#limit').onchange = () => { s.limit = +$('#limit').value; fruitfox.storage.set('settings', s); };
+  const u = await fruitfox.storage.get('usage');
+  const mins = u?.day === new Date().toDateString() ? Math.round(u.secs / 60) : 0;
+  $('#used').textContent = `You’ve used Instagram for ${mins} minute${mins === 1 ? '' : 's'} today.`;
+});
+</script>

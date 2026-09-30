@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<main id="list" class="list"><div class="spinner"></div></main>
+<script>
+// Notifications: likes, comments, follows and mentions, newest first; follow requests at the top.
+const row = st => {
+  const a = st.args || {}, u = a.users?.[0], m = a.media?.[0];
+  // Names in the text become taps on their profiles (links give their ranges).
+  let text = esc(a.text || '');
+  for (const l of (a.links || []).filter(l => l.type === 'user' && l.username).reverse())
+    text = text.replace(esc(l.username), `<b data-user="${esc(l.username)}" data-uid="${esc(l.id)}">${esc(l.username)}</b>`);
+  return `<div class="cell row"><img alt="" class="avatar" src="${esc(fruitfox.media(a.profile_image))}" data-user="${esc(u?.username || a.profile_name)}" data-uid="${esc(a.profile_id)}">
+    <div class="grow small">${text} <span class="secondary">${a.timestamp ? ago(a.timestamp) : ''}</span></div>
+    ${m?.image ? `<img alt="" src="${esc(m.image)}" data-media="${esc(String(m.id).split('_')[0])}" style="width:44px;height:44px;object-fit:cover;border-radius:6px">` : ''}</div>`;
+};
+guard($('#list'), async () => {
+  const d = await ig.activity(), a = d.xdt_activity_inbox || {}, pending = d.xdt_api__v1__friendships__pending?.users || [];
+  $('#list').innerHTML =
+    (pending.length ? `<div class="cell row tappable" id="requests"><div class="grow headline">Follow Requests</div><span class="secondary">${pending.map(u => esc(u.username)).slice(0, 2).join(', ')}${pending.length > 2 ? ' + ' + (pending.length - 2) : ''}</span></div>` : '')
+    + [...(a.new_stories || []), ...(a.old_stories || [])].map(row).join('')
+    || '<div class="center secondary">No activity yet</div>';
+});
+$('#list').addEventListener('click', e => {
+  if (openLink(e)) return;
+  const m = e.target.closest('[data-media]')?.dataset.media;
+  if (m) fruitfox.ui.push('post.html?id=' + m, 'Post');
+  if (e.target.closest('#requests')) fruitfox.ui.open(IG + '/accounts/activity/?followRequests=1');
+});
+fruitfox.on('refresh', () => location.reload());
+</script>

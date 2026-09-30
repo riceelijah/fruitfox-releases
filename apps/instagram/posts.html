@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<main id="feed"><div class="spinner"></div></main>
+<script>
+// Posts from a grid (openFeed in ig.js), then more from the same place as you scroll.
+// source: 'explore', {posts: username}, {tagged: id}, {tag: query}, 'saved'; reels have no next page.
+const posts = new Map();
+let f, s;
+const add = items => items.map(m => (posts.set(m.id, m), postView(m, s))).join('');
+guard($('#feed'), async () => {
+  s = await settings();
+  f = await fruitfox.storage.get('feed');
+  $('#feed').innerHTML = add(f.items);
+});
+wirePosts($('#feed'), id => posts.get(id));
+onNearEnd(async () => {
+  if (!f?.next) return;
+  const src = f.source;
+  let r;
+  if (src === 'explore') { const x = await ig.explore(f.next); r = { items: findMedia(x.sectional_items || x), next: x.more_available ? x.next_max_id : null }; }
+  else if (src === 'saved') { const x = await ig.saved(f.next); r = { items: (x.items || []).map(i => i.media), next: x.more_available ? x.next_max_id : null }; }
+  else if (src.posts) r = await ig.profilePosts(src.posts, f.next);
+  else if (src.tagged) r = await ig.tagged(src.tagged, f.next);
+  else if (src.tag) r = await ig.keyword(src.tag, f.next);
+  else return;
+  f.next = r.next;
+  $('#feed').insertAdjacentHTML('beforeend', add(r.items));
+});
+</script>

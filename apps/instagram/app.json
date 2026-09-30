@@ -1,0 +1,32 @@
+{
+  "name": "Instagram",
+  "version": "1",
+  "icon": "icon.png",
+  "sites": [
+    "instagram.com",
+    "cdninstagram.com",
+    "fbcdn.net"
+  ],
+  "tabs": [
+    {
+      "title": "Home",
+      "symbol": "house",
+      "page": "feed.html"
+    },
+    {
+      "title": "Search",
+      "symbol": "magnifyingglass",
+      "page": "search.html"
+    },
+    {
+      "title": "Messages",
+      "symbol": "paperplane",
+      "page": "inbox.html"
+    },
+    {
+      "title": "Profile",
+      "symbol": "person.crop.circle",
+      "page": "profile.html"
+    }
+  ]
+}

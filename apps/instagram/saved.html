@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<div class="grid" id="grid"><div class="spinner" style="grid-column:1/-1"></div></div>
+<script>
+let items = [], next = null;
+async function page(maxId) {
+  const r = await ig.saved(maxId);
+  next = r.more_available ? r.next_max_id : null;
+  const got = (r.items || []).map(i => i.media).filter(Boolean);
+  items = maxId ? items.concat(got) : got;
+  return got.map(tile).join('') || (maxId ? '' : '<div class="center secondary" style="grid-column:1/-1">Nothing saved yet</div>');
+}
+guard($('#grid'), async () => { $('#grid').innerHTML = await page(); });
+$('#grid').addEventListener('click', e => openFeed(e, items, 'saved', next, 'Saved'));
+onNearEnd(async () => { if (next) $('#grid').insertAdjacentHTML('beforeend', await page(next)); });
+</script>

@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<main id="post"><div class="spinner"></div></main>
+<script>
+let m;
+guard($('#post'), async () => {
+  m = (await ig.media(fruitfox.params.id)).items[0];
+  $('#post').innerHTML = postView(m, await settings());
+});
+wirePosts($('#post'), () => m);
+</script>

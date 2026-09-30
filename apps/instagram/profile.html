@@ -1,0 +1,85 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<main id="profile"><div class="spinner"></div></main>
+<div class="tray" id="highlights" hidden></div>
+<div class="segments" id="tabs" hidden><button data-tab="posts" class="on" aria-label="Posts">Posts</button><button data-tab="reels" aria-label="Reels">Reels</button><button data-tab="tagged" aria-label="Tagged">Tagged</button></div>
+<div class="grid" id="grid"></div>
+<script>
+// A profile: yours (the Profile tab), ?id= (account id) and/or ?username=. Highlights, then Posts, Reels and Tagged.
+let user, following, mine, tab = 'posts', next = null, items = [], first;
+const load = {
+  posts: after => after || !first ? ig.profilePosts(user.username, after) : first,
+  reels: () => ig.profileReels(user.pk),
+  tagged: after => ig.tagged(user.pk, after),
+};
+async function page(after) {
+  const r = await load[tab](after);
+  next = tab === 'reels' ? null : r.next;
+  items = after ? items.concat(r.items) : r.items;
+  return r.items.map(tile).join('') || (after ? '' : `<div class="center secondary" style="grid-column:1/-1">${tab === 'tagged' ? 'No tagged posts' : 'No posts yet'}</div>`);
+}
+async function accountId() {
+  const p = fruitfox.params;
+  if (p.id) return p.id;
+  if (!p.username) { const id = await me(); if (!id) throw new SignedOut(); return id; }
+  first = await ig.profilePosts(p.username);  // its posts carry the account id
+  if (first.user) return first.user.pk || first.user.id;
+  const u = ((await ig.search(p.username)).users || []).map(x => x.user).find(u => u.username === p.username);
+  if (!u) throw new Error('No account called ' + p.username);
+  return u.pk || u.pk_id;
+}
+guard($('#profile'), async () => {
+  const id = await accountId();
+  mine = id == await me();
+  user = await ig.profile(id);
+  following = user.friendship_status?.following;
+  fruitfox.ui.title(user.username);
+  if (mine) fruitfox.ui.buttons([{ id: 'saved', symbol: 'bookmark', title: 'Saved' }, { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+  const link = user.external_url || user.bio_links?.[0]?.url;
+  const stat = (n, label, kind) => `<div class="${kind ? 'tappable' : ''}" ${kind ? `data-follows="${kind}"` : ''}><div class="headline">${count(n)}</div><div class="small secondary">${label}</div></div>`;
+  $('#profile').innerHTML = `<div class="row pad" style="gap:16px"><img alt="" class="avatar large ${user.latest_reel_media ? 'ring tappable' : ''}" id="avatar" src="${esc(fruitfox.media(user.hd_profile_pic_url_info?.url) || pic(user))}">
+    <div class="row grow stats">${stat(user.media_count, 'posts')}${stat(user.follower_count, 'followers', 'followers')}${stat(user.following_count, 'following', 'following')}</div></div>
+    <div class="pad0 headline">${esc(user.full_name)}${verified(user)}</div>
+    ${user.category && user.should_show_category ? `<div class="pad0 small secondary">${esc(user.category)}</div>` : ''}
+    <div class="pad0 caption-text">${rich(user.biography || '')}</div>
+    ${link ? `<div class="pad0"><a href="${esc(link)}">${esc(link.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''))}</a></div>` : ''}
+    ${user.friendship_status?.followed_by && !mine ? '<div class="pad0 small secondary">Follows you</div>' : ''}
+    ${mine ? '' : `<div class="pad"><button class="button ${following ? 'plain' : ''}" id="follow" style="width:100%">${following ? 'Following' : user.friendship_status?.outgoing_request ? 'Requested' : 'Follow'}</button></div>`}`;
+  if (user.is_private && !following && !mine) { $('#grid').outerHTML = '<div class="center secondary">This account is private</div>'; return; }
+  ig.highlights(user.pk).then(hs => {
+    if (!hs.length) return;
+    $('#highlights').hidden = false;
+    $('#highlights').innerHTML = hs.map(h => `<div class="tappable" data-reel="${esc(h.id)}"><img alt="" class="avatar" src="${esc(fruitfox.media(h.cover_media?.cropped_image_version?.url))}"><div class="caption ellipsis">${esc(h.title)}</div></div>`).join('');
+  }).catch(() => {});
+  $('#tabs').hidden = false;
+  $('#grid').innerHTML = await page();
+});
+$('#profile').addEventListener('click', async e => {
+  if (openLink(e)) return;
+  const f = e.target.closest('[data-follows]')?.dataset.follows;
+  if (f) return fruitfox.ui.push(`follows.html?id=${user.pk}&kind=${f}`, f === 'followers' ? 'Followers' : 'Following');
+  if (e.target.id === 'avatar' && user.latest_reel_media) return fruitfox.ui.cover('story.html?ids=' + user.pk);
+  if (e.target.id !== 'follow') return;
+  const on = !following;
+  if (!on && await fruitfox.ui.menu([{ id: 'unfollow', title: 'Unfollow', destructive: true }], 'Unfollow ' + user.username + '?') !== 'unfollow') return;
+  try { await ig.follow(user.pk, on); following = on; e.target.textContent = on ? 'Following' : 'Follow'; e.target.classList.toggle('plain', on); fruitfox.ui.haptic('success'); }
+  catch (err) { fruitfox.ui.toast(err.message); }
+});
+$('#highlights').addEventListener('click', e => {
+  const all = [...document.querySelectorAll('#highlights [data-reel]')], t = e.target.closest('[data-reel]');
+  if (t) fruitfox.ui.cover(`story.html?ids=${all.map(x => x.dataset.reel).join(',')}&i=${all.indexOf(t)}`);
+});
+$('#tabs').addEventListener('click', async e => {
+  const b = e.target.closest('[data-tab]'); if (!b || b.dataset.tab === tab) return;
+  tab = b.dataset.tab; fruitfox.ui.haptic('select');
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  $('#grid').innerHTML = '<div class="spinner" style="grid-column:1/-1"></div>';
+  await guard($('#grid'), async () => { $('#grid').innerHTML = await page(); });
+});
+$('#grid').addEventListener('click', e => openFeed(e, items, { [tab]: tab === 'posts' ? user.username : user.pk }, next, tab === 'tagged' ? 'Tagged' : tab === 'reels' ? 'Reels' : 'Posts'));
+onNearEnd(async () => { if (next) $('#grid').insertAdjacentHTML('beforeend', await page(next)); });
+fruitfox.on('button', id => {
+  if (id === 'saved') fruitfox.ui.push('saved.html', 'Saved');
+  if (id === 'settings') fruitfox.ui.sheet('settings.html', 'Settings');
+});
+fruitfox.on('refresh', () => location.reload());
+</script>
