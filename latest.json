@@ -5,6 +5,6 @@
   "beta": {
     "version": "2.0.0",
     "name": "Honeydew",
-    "notes": "### Fruitfox Apps\n- **Apps for websites, the way you want them**, drawn natively by Fruitfox and signed in with your account (start page, ⋯ › Apps).\n- **Instagram** (in progress): your follows, newest first, no ads, suggestions or Reels.\n- A second account in a container (touch and hold the app).\n\n### New icon\n- A blue fox curled around a red apple, in Liquid Glass.\n- **65 icons** in Settings › Appearance › App Icon: colors, color themes, seasons, themes, release fruits and pride flags.\n\n### iPad\n- **Multiple windows**, side by side or in Stage Manager.\n\n### Fixes\n- Tabs whose link was a download no longer download it again at launch."
+    "notes": "### Fruitfox Apps\n- **Apps for websites, the way you want them**, drawn natively by Fruitfox and signed in with your account (start page, ⋯ › Apps).\n- **Instagram** (in progress): your follows, newest first, no ads, suggestions or Reels.\n- A second account in a container (touch and hold the app).\n\n### New icon\n- A blue fox curled around a red apple, in Liquid Glass.\n- **65 icons** in Settings › Appearance › App Icon: colors, color themes, seasons, themes, release fruits and pride flags.\n\n### iPad\n- **Multiple windows**, side by side or in Stage Manager.\n- **Split view:** two tabs side by side as a pair (drag a tab onto another, or ⋯ › Split View).\n- **Tab sidebar**, like Firefox's vertical tabs.\n\n### Fixes\n- Tabs whose link was a download no longer download it again at launch."
   }
 }
