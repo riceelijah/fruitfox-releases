@@ -5,6 +5,6 @@
   "beta": {
     "version": "2.0.0",
     "name": "Honeydew",
-    "notes": "### New icon\n- A blue fox curled around a red apple, in Liquid Glass.\n- **65 icons** in Settings › Appearance › App Icon: colors, color themes, seasons, themes, release fruits and pride flags.\n\n### iPad\n- **Multiple windows**, side by side or in Stage Manager.\n\n### Mac\n- **Fruitfox for the Mac** (in progress): laid out like desktop Firefox, with bookmarks, history, Firefox import, Find in Page, AI Search, privacy settings and an app icon builder.\n\n### Fixes\n- Tabs whose link was a download no longer download it again at launch."
+    "notes": "### New icon\n- A blue fox curled around a red apple, in Liquid Glass.\n- **65 icons** in Settings › Appearance › App Icon: colors, color themes, seasons, themes, release fruits and pride flags.\n\n### iPad\n- **Multiple windows**, side by side or in Stage Manager.\n\n### Fixes\n- Tabs whose link was a download no longer download it again at launch."
   }
 }
