@@ -1,0 +1,43 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="hn.css"><script src="hn.js"></script>
+<div class="chips feeds" id="feeds"></div>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// Stories: Top, New, Best, Ask, Show and Jobs, 30 at a time, with your filters.
+const NAMES = { top: 'Top', new: 'New', best: 'Best', ask: 'Ask', show: 'Show', job: 'Jobs' };
+const stories = new Map();
+let feed, all = [], shown = 0, rank = 0;
+
+async function page() {
+  const [read, hiddenSet] = [await idSet('read'), await idSet('hiddenStories')];
+  const batch = all.slice(shown, shown += 30);
+  const items = await Promise.all(batch.map(id => item(id).catch(() => null)));
+  return items.map(st => {
+    rank++;
+    if (hidden(st) || hiddenSet.has(st.id) || (S.hideRead && read.has(st.id))) return '';
+    stories.set(st.id, st);
+    return storyRow(st, rank, read.has(st.id));
+  }).join('');
+}
+
+async function load(f) {
+  await settings();
+  feed = f || feed || S.feed;
+  $('#feeds').innerHTML = Object.entries(NAMES).map(([k, n]) => `<span class="chip tappable ${k === feed ? 'on' : ''}" data-feed="${k}">${n}</span>`).join('');
+  fruitfox.ui.title(NAMES[feed] === 'Top' ? 'Hacker News' : NAMES[feed]);
+  try {
+    all = await ids(feed); shown = 0; rank = 0;
+    let html = '';
+    while (!html && shown < all.length) html = await page();  // a page can be all filtered out
+    $('#list').innerHTML = html || '<div class="center secondary">Nothing here with your filters.</div>';
+  } catch (e) {
+    $('#list').innerHTML = `<div class="center"><div class="headline">Couldn’t load stories</div><div class="secondary">${esc(e.message)}</div></div>`;
+  }
+}
+
+$('#feeds').addEventListener('click', e => { const c = e.target.closest('[data-feed]'); if (c) { haptic('select'); scrollTo(0, 0); load(c.dataset.feed); } });
+wireStories($('#list'), id => stories.get(id));
+onNearEnd(async () => { if (shown < all.length) $('#list').insertAdjacentHTML('beforeend', await page()); });
+fruitfox.ui.buttons([{ id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+fruitfox.on('refresh', () => load());
+load();
+</script>

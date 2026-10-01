@@ -1,0 +1,61 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="hn.css"><script src="hn.js"></script>
+<main id="page"><div class="spinner"></div></main>
+<script>
+// One story: its link, text and the whole comment thread. Tap a comment to fold it.
+const id = +fruitfox.params.id;
+let st;
+async function load() {
+  await settings();
+  try {
+    const [fb, al] = await Promise.all([item(id), json(`${AL}/items/${id}`)]);
+    st = fb;
+    const d = domain(st.url), voted = (await idSet('voted')).has(id), saved = (await idSet('saved')).has(id);
+    const kids = sortKids(al.children, S.order, st.kids);
+    document.body.classList.toggle('bars', !!S.bars);
+    $('#page').innerHTML = `<div class="head">
+        <div class="title">${esc(st.title)}</div>
+        <div class="meta">${[d && `<span>${esc(d)}</span>`, st.score != null && `<span class="pts">${st.score} points</span>`, st.by && `<span data-user="${esc(st.by)}">${esc(st.by)}</span>`, `<span>${ago(st.time)}</span>`].filter(Boolean).join('<span>·</span>')}</div>
+        ${st.text ? `<div class="text">${clean(st.text)}</div>` : ''}
+        <div class="actions">
+          ${st.url ? '<button class="button" data-a="open">Open Link</button>' : ''}
+          <button class="button plain" data-a="vote">${voted ? '▲ Voted' : '▲ Upvote'}</button>
+          <button class="button plain" data-a="save">${saved ? 'Saved' : 'Save'}</button>
+          <button class="button plain" data-a="reply">Reply</button>
+        </div></div>
+      <div id="comments">${kids.map(k => commentHTML(k, 0, st.by)).join('') || '<div class="center secondary">No comments yet.</div>'}</div>`;
+    mark('read', id);
+  } catch (e) {
+    $('#page').innerHTML = `<div class="center"><div class="headline">Couldn’t load this</div><div class="secondary">${esc(e.message)}</div></div>`;
+  }
+}
+$('#page').addEventListener('click', async e => {
+  const u = e.target.closest('[data-user]');
+  if (u) return fruitfox.ui.push('user.html?id=' + encodeURIComponent(u.dataset.user), u.dataset.user);
+  const link = e.target.closest('.text a');
+  if (link) { e.preventDefault(); return openLink(link.href); }
+  const a = e.target.closest('[data-a]')?.dataset.a;
+  if (a === 'open') return openLink(st.url);
+  if (a === 'vote') { await vote(id); return load(); }
+  if (a === 'save') { const on = !(await idSet('saved')).has(id); await saveStory(st, on); haptic('select'); return load(); }
+  if (a === 'reply') return fruitfox.ui.web(`${HN}/item?id=${id}`);
+  const c = e.target.closest('.c');
+  if (c && !e.target.closest('a')) {
+    c.classList.toggle('folded'); haptic('light');
+    const n = c.querySelector(':scope > .body .n');
+    if (n) n.textContent = c.classList.contains('folded') ? '+' + c.querySelectorAll('.c').length : '';
+  }
+});
+$('#page').addEventListener('contextmenu', async e => {
+  const c = e.target.closest('.c');
+  if (!c) return;
+  e.preventDefault();
+  const pick = await fruitfox.ui.menu([{ id: 'vote', title: 'Upvote' }, { id: 'reply', title: 'Reply' }, { id: 'share', title: 'Share' }]);
+  if (pick === 'vote') vote(+c.dataset.c);
+  if (pick === 'reply') fruitfox.ui.web(`${HN}/reply?id=${c.dataset.c}`);
+  if (pick === 'share') fruitfox.ui.share(`${HN}/item?id=${c.dataset.c}`);
+});
+fruitfox.ui.buttons([{ id: 'share', symbol: 'square.and.arrow.up', title: 'Share' }, { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+fruitfox.on('button', b => { if (b === 'share') fruitfox.ui.share(`${HN}/item?id=${id}`); });
+fruitfox.on('refresh', load);
+load();
+</script>

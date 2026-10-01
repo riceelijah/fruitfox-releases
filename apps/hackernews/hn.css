@@ -1,0 +1,35 @@
+/* Hacker News on the kit: HN orange (or your accent), dense rows like news.ycombinator.com, comment depth bars. */
+.feeds { position: sticky; top: 0; z-index: 2; background: var(--bg); }
+.story { display: flex; gap: 10px; align-items: flex-start; padding: 10px 16px; border-bottom: .5px solid var(--sep); }
+.story.read .title { color: var(--fg2); }
+.story.dim.read { opacity: .55; }
+.rank { color: var(--fg2); font-variant-numeric: tabular-nums; min-width: 22px; text-align: right; padding-top: 1px; }
+.fav { width: 18px; height: 18px; border-radius: 4px; flex: none; margin-top: 2px; background: var(--fill); }
+.story .title { font: -apple-system-body; font-weight: 500; line-height: 1.3; }
+.compact .story { padding: 6px 16px; }
+.compact .story .title { font: -apple-system-subheadline; font-weight: 500; }
+.meta { font: -apple-system-footnote; color: var(--fg2); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 0 6px; }
+.meta .pts { color: var(--accent); font-weight: 600; }
+.cbtn { flex: none; display: grid; justify-items: center; color: var(--fg2); font: -apple-system-caption1; min-width: 40px; padding-top: 2px; }
+.cbtn b { font: -apple-system-subheadline; font-weight: 600; color: var(--accent); }
+.head { padding: 16px; border-bottom: .5px solid var(--sep); }
+.head .title { font: -apple-system-title3; font-weight: 700; line-height: 1.25; }
+.head .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.text { font: -apple-system-subheadline; line-height: 1.45; overflow-wrap: anywhere; }
+.text a { color: var(--accent); }
+.text pre { white-space: pre-wrap; font: -apple-system-caption1; font-family: ui-monospace, Menlo, monospace; background: var(--fill); padding: 8px; border-radius: 8px; }
+.text p { margin: .5em 0 0; }
+.c { padding: 8px 0 0 12px; }
+.c > .body { padding: 0 16px 8px 0; border-bottom: .5px solid var(--sep); }
+.c .kids { margin-left: 2px; border-left: 2px solid transparent; }
+.bars .c .kids { border-left-color: var(--bar); }
+.c .by { font: -apple-system-footnote; color: var(--fg2); display: flex; gap: 6px; align-items: center; }
+.c .by b { color: var(--fg); font-weight: 600; }
+.c .by .op { color: var(--accent); }
+.c .by .n { margin-left: auto; }
+.c.folded > .body > .text, .c.folded > .kids { display: none; }
+.c.dead .text { color: var(--fg2); font-style: italic; }
+.text-s .text { font: -apple-system-footnote; line-height: 1.45; } .text-l .text { font: -apple-system-body; line-height: 1.45; }
+.head .text { font: -apple-system-body; }
+.sbar { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 8px 16px; }
+.sbox { width: 100%; box-sizing: border-box; border: 0; border-radius: 10px; padding: 9px 12px; font: -apple-system-body; background: var(--fill); color: var(--fg); }

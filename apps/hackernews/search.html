@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="hn.css"><script src="hn.js"></script>
+<div class="sbar"><input class="sbox" id="q" type="search" placeholder="Search Hacker News" autocomplete="off"></div>
+<div class="chips" id="opts"></div>
+<main id="list"></main>
+<script>
+// Search with Algolia: stories or comments, by relevance or date, over a time range.
+const stories = new Map();
+const OPTS = { sort: [['search', 'Relevant'], ['search_by_date', 'Newest']], tags: [['story', 'Stories'], ['comment', 'Comments']],
+  when: [['', 'All Time'], ['86400', 'Day'], ['604800', 'Week'], ['2592000', 'Month'], ['31536000', 'Year']] };
+const o = { sort: 'search', tags: 'story', when: '' };
+let pageNo = 0, more = false, timer;
+function chips() { $('#opts').innerHTML = Object.entries(OPTS).flatMap(([k, list]) => list.map(([v, n]) => `<span class="chip tappable ${o[k] === v ? 'on' : ''}" data-k="${k}" data-v="${v}">${n}</span>`)).join(''); }
+async function run(next) {
+  const q = $('#q').value.trim();
+  if (!q) { $('#list').innerHTML = ''; return; }
+  if (!next) { pageNo = 0; $('#list').innerHTML = '<div class="spinner"></div>'; }
+  const f = o.when ? `&numericFilters=created_at_i>${Math.floor(Date.now() / 1000) - +o.when}` : '';
+  const r = await json(`${AL}/${o.sort}?query=${encodeURIComponent(q)}&tags=${o.tags}&page=${pageNo}${f}`);
+  more = pageNo + 1 < r.nbPages; pageNo++;
+  const read = await idSet('read');
+  const html = r.hits.map(h => {
+    if (o.tags === 'comment') return `<div class="c tappable" data-story="${h.story_id}"><div class="body"><div class="by"><b>${esc(h.author)}</b><span>${ago(h.created_at_i)}</span><span>on ${esc(h.story_title || '')}</span></div><div class="text">${clean(h.comment_text)}</div></div></div>`;
+    const st = { id: +h.objectID, title: h.title, url: h.url, by: h.author, time: h.created_at_i, score: h.points, descendants: h.num_comments, type: 'story' };
+    stories.set(st.id, st);
+    return storyRow(st, 0, read.has(st.id));
+  }).join('');
+  if (next) $('#list').insertAdjacentHTML('beforeend', html); else $('#list').innerHTML = html || '<div class="center secondary">No results.</div>';
+}
+$('#q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => run(), 350); });
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') $('#q').blur(); });
+$('#opts').addEventListener('click', e => { const c = e.target.closest('[data-k]'); if (!c) return; o[c.dataset.k] = c.dataset.v; haptic('select'); chips(); run(); });
+$('#list').addEventListener('click', e => { const c = e.target.closest('[data-story]'); if (c) fruitfox.ui.push('item.html?id=' + c.dataset.story, 'Comments'); });
+wireStories($('#list'), id => stories.get(id));
+onNearEnd(() => more && run(true));
+settings().then(chips);
+</script>

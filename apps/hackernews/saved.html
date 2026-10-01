@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="hn.css"><script src="hn.js"></script>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// Stories you saved, newest first (on this phone).
+let saved = [];
+async function load() {
+  await settings();
+  saved = (await fruitfox.storage.get('savedStories')) || [];
+  const read = await idSet('read');
+  $('#list').innerHTML = saved.map(st => storyRow(st, 0, read.has(st.id))).join('') ||
+    '<div class="center"><div class="headline">No saved stories</div><div class="secondary">Touch and hold a story and choose Save.</div></div>';
+}
+wireStories($('#list'), id => saved.find(s => s.id === id));
+fruitfox.on('refresh', load);
+addEventListener('pageshow', load);
+document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && load());
+load();
+</script>

@@ -1,0 +1,47 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="hn.css"><script src="hn.js"></script>
+<main id="page"><div class="spinner"></div></main>
+<script>
+// A profile: yours (the Profile tab, signed in on news.ycombinator.com) or anyone's, with their stories and comments.
+const stories = new Map();
+let who = fruitfox.params.id, tab = 'story';
+async function load() {
+  await settings();
+  const mine = !who;
+  who ||= await me();
+  if (!who) {
+    $('#page').innerHTML = `<div class="center"><div class="headline">Sign in to Hacker News</div>
+      <div class="secondary">To vote and see your profile. Your password goes to news.ycombinator.com only.</div>
+      <button class="button" id="signin">Sign In</button></div>`;
+    fruitfox.ui.buttons([{ id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+    return;
+  }
+  const [u, hits] = await Promise.all([json(`${FB}/user/${who}.json`), json(`${AL}/search_by_date?tags=${tab},author_${encodeURIComponent(who)}&hitsPerPage=40`)]);
+  const read = await idSet('read');
+  $('#page').innerHTML = `<div class="head"><div class="title">${esc(who)}</div>
+      <div class="meta"><span class="pts">${u?.karma ?? 0} karma</span><span>·</span><span>joined ${u ? new Date(u.created * 1000).toLocaleDateString() : ''}</span></div>
+      ${u?.about ? `<div class="text">${clean(u.about)}</div>` : ''}</div>
+    <div class="chips"><span class="chip tappable ${tab === 'story' ? 'on' : ''}" data-tab="story">Stories</span><span class="chip tappable ${tab === 'comment' ? 'on' : ''}" data-tab="comment">Comments</span></div>
+    <div id="list">${hits.hits.map(h => {
+      if (tab === 'comment') return `<div class="c tappable" data-story="${h.story_id}"><div class="body"><div class="by"><span>${ago(h.created_at_i)}</span><span>on ${esc(h.story_title || '')}</span></div><div class="text">${clean(h.comment_text)}</div></div></div>`;
+      const st = { id: +h.objectID, title: h.title, url: h.url, by: h.author, time: h.created_at_i, score: h.points, descendants: h.num_comments, type: 'story' };
+      stories.set(st.id, st); return storyRow(st, 0, read.has(st.id));
+    }).join('') || '<div class="center secondary">Nothing yet.</div>'}</div>`;
+  fruitfox.ui.buttons(mine ? [{ id: 'signout', symbol: 'rectangle.portrait.and.arrow.right', title: 'Sign Out' }, { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]
+                           : [{ id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+}
+$('#page').addEventListener('click', async e => {
+  if (e.target.id === 'signin') { await fruitfox.ui.signIn(`${HN}/login?goto=news`); return load(); }
+  const t = e.target.closest('[data-tab]'); if (t) { tab = t.dataset.tab; haptic('select'); return load(); }
+  const c = e.target.closest('[data-story]'); if (c) fruitfox.ui.push('item.html?id=' + c.dataset.story, 'Comments');
+});
+wireStories(document.body, id => stories.get(id));
+fruitfox.on('button', async b => {
+  if (b !== 'signout') return;
+  // HN's sign-out link carries a token from its pages.
+  const auth = (await fruitfox.fetch(HN)).body.match(/href="logout\?auth=([^&"]+)/)?.[1];
+  if (auth) await fruitfox.fetch(`${HN}/logout?auth=${auth}&goto=news`);
+  who = null; load();
+});
+fruitfox.on('refresh', load);
+load().catch(e => $('#page').innerHTML = `<div class="center secondary">${esc(e.message)}</div>`);
+</script>

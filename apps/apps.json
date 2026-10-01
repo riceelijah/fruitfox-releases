@@ -6,5 +6,13 @@
     "version": "6",
     "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/instagram.zip",
     "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/instagram/icon.png"
+  },
+  {
+    "id": "hackernews",
+    "name": "Hacker News",
+    "summary": "Top, new, best, Ask and Show HN with full comment threads, search, saved stories and voting; filters and switches for everything.",
+    "version": "1",
+    "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/hackernews.zip",
+    "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/hackernews/icon.png"
   }
 ]
