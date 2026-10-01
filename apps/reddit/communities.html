@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="rd.css"><script src="rd.js"></script>
+<main id="page"><div class="spinner"></div></main>
+<script>
+// Your communities (signed in), favorites first, and any community by name.
+async function load() {
+  await settings();
+  const subs = (await subscriptions()).sort((a, b) => a.display_name.localeCompare(b.display_name, undefined, { sensitivity: 'base' }));
+  const favs = new Set((await fruitfox.storage.get('favSubs')) || []);
+  const row = s => `<div class="cell row tappable" data-sub="${esc(s.display_name)}"><img alt="" class="avatar" style="width:32px;height:32px;background:var(--up)" src="${esc((s.community_icon || s.icon_img || '').split('?')[0])}">
+    <div class="grow">r/${esc(s.display_name)}</div><button class="icon-button ${favs.has(s.display_name) ? 'on' : ''}" data-fav="${esc(s.display_name)}">${favs.has(s.display_name) ? '★' : '☆'}</button></div>`;
+  $('#page').innerHTML = `<div class="sbar"><input class="sbox" id="go" placeholder="Go to a community (r/…)" autocapitalize="off"></div>`
+    + (subs.length ? `${favs.size ? `<div class="pad small secondary">Favorites</div><div class="list">${subs.filter(s => favs.has(s.display_name)).map(row).join('')}</div>` : ''}
+      <div class="pad small secondary">Your Communities</div><div class="list">${subs.map(row).join('')}</div>`
+    : `<div class="center"><div class="headline">Your communities show here</div><div class="secondary">Sign in to Reddit to see the communities you’ve joined.</div><button class="button" id="signin">Sign In</button></div>`);
+  $('#go').onkeydown = e => { if (e.key === 'Enter' && e.target.value.trim()) { const n = e.target.value.trim().replace(/^\/?r\//i, ''); fruitfox.ui.push('sub.html?name=' + encodeURIComponent(n), 'r/' + n); } };
+}
+$('#page').addEventListener('click', async e => {
+  if (e.target.id === 'signin') { await fruitfox.ui.signIn(RD + '/login'); meCache = undefined; return load(); }
+  const f = e.target.closest('[data-fav]');
+  if (f) { const s = new Set((await fruitfox.storage.get('favSubs')) || []); s.has(f.dataset.fav) ? s.delete(f.dataset.fav) : s.add(f.dataset.fav); await fruitfox.storage.set('favSubs', [...s]); haptic('select'); return load(); }
+  const r = e.target.closest('[data-sub]'); if (r) fruitfox.ui.push('sub.html?name=' + encodeURIComponent(r.dataset.sub), 'r/' + r.dataset.sub);
+});
+fruitfox.ui.buttons([{ id: 'saved', symbol: 'bookmark', title: 'Saved' }, { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+fruitfox.on('button', id => { if (id === 'saved') fruitfox.ui.push('saved.html', 'Saved'); });
+fruitfox.on('refresh', load);
+load();
+</script>

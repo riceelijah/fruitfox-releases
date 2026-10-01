@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="rd.css"><script src="rd.js"></script>
+<main id="page" class="center"><div class="headline">Inbox and Chat</div>
+  <div class="secondary">Your notifications, messages and chats, on reddit.com, signed in.</div>
+  <button class="button" data-u="/notifications">Notifications</button>
+  <button class="button plain" data-u="/message/inbox">Messages</button>
+  <button class="button plain" data-u="https://chat.reddit.com">Chat</button>
+  <button class="button plain" data-p="profile">Your Profile</button></main>
+<script>
+// Notifications and chat run on Reddit's own pages (in a sheet, signed in): they're live connections this app can't copy.
+$('#page').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.p) { const u = await me(); return fruitfox.ui.web(u?.name ? `${RD}/user/${u.name}/` : RD + '/login'); }
+  fruitfox.ui.web(b.dataset.u.startsWith('http') ? b.dataset.u : RD + b.dataset.u);
+});
+fruitfox.ui.buttons([{ id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+settings();
+</script>

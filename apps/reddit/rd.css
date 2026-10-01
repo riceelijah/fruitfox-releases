@@ -1,0 +1,68 @@
+/* Reddit's iOS app on the kit: cards with a community header, bold titles, full-width media and pill action bars. */
+:root { --up: #ff4500; --down: #7193ff; --pill: var(--fill); }
+body { background: var(--bg); }
+.feed-head { position: sticky; top: 0; z-index: 3; background: var(--bg); }
+.post { padding: 10px 16px 8px; border-bottom: 1px solid var(--sep); }
+.card .post { border-bottom: 8px solid var(--fill); }
+.post.read .ptitle { color: var(--fg2); }
+.post.dim.read { opacity: .6; }
+.phead { display: flex; align-items: center; gap: 8px; font: -apple-system-footnote; color: var(--fg2); }
+.phead .sicon { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex: none; background: var(--up); }
+.phead b { color: var(--fg); font-weight: 600; }
+.phead .join { margin-left: auto; border: 0; border-radius: 999px; padding: 5px 12px; background: #0045ac; color: #fff; font: -apple-system-footnote; font-weight: 700; }
+.phead .dots { border: 0; background: none; color: var(--fg2); font-size: 18px; padding: 0 2px 0 6px; }
+.phead .dots:first-of-type { margin-left: auto; }
+.ptitle { font: -apple-system-headline; font-size: 17px; line-height: 1.3; margin: 8px 0 4px; }
+.flair { display: inline-block; border-radius: 999px; padding: 2px 8px; font: -apple-system-caption1; font-weight: 600; background: var(--pill); margin: 2px 0 4px; }
+.tag { display: inline-block; border-radius: 4px; padding: 1px 5px; font: -apple-system-caption2; font-weight: 700; margin-right: 4px; }
+.tag.nsfw { background: #ff4f6e; color: #fff; } .tag.spoiler { background: var(--fg2); color: var(--bg); }
+.preview { color: var(--fg2); font: -apple-system-subheadline; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 4px; }
+.media { position: relative; margin: 8px 0 4px; border-radius: 16px; overflow: hidden; background: var(--fill); }
+.media img, .media video { display: block; width: 100%; max-height: 62vh; object-fit: contain; background: #000; }
+.media .carousel img { max-height: 75vh; object-fit: contain; }
+.media .count { position: absolute; top: 10px; right: 10px; background: rgb(0 0 0 / .65); color: #fff; font: -apple-system-caption1; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+.media.blur img, .media.blur video { filter: blur(28px); }
+.media.blur::after { content: attr(data-why); position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font: -apple-system-headline; text-shadow: 0 1px 4px #000; }
+.linkcard { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; border-radius: 12px; background: var(--pill); padding: 8px 8px 8px 12px; }
+.linkcard .d { flex: 1; min-width: 0; font: -apple-system-footnote; color: var(--fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.linkcard img { width: 64px; height: 48px; border-radius: 8px; object-fit: cover; flex: none; }
+.bar { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.pill { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 10px; border-radius: 999px; background: var(--pill); color: var(--fg);
+  font: -apple-system-footnote; font-weight: 600; border: 0; }
+.pill svg { width: 20px; height: 20px; }
+.vote { padding: 0 4px; gap: 2px; }
+.vote button { border: 0; background: none; color: inherit; padding: 4px; display: grid; }
+.vote.up { background: var(--up); color: #fff; } .vote.down { background: var(--down); color: #fff; }
+.compact .post { display: grid; grid-template-columns: 1fr 72px; gap: 0 10px; padding: 10px 16px; }
+.compact.thumb-left .post { grid-template-columns: 72px 1fr; }
+.compact.thumb-left .post .thumb { grid-column: 1; grid-row: 1 / span 4; }
+.compact .post > :not(.thumb) { grid-column: 1; }
+.compact.thumb-left .post > :not(.thumb) { grid-column: 2; }
+.compact .post > .thumb { grid-column: 2; grid-row: 1 / span 4; width: 72px; height: 72px; border-radius: 10px; object-fit: cover; background: var(--fill); }
+.compact .ptitle { font-size: 15px; margin: 4px 0; }
+.compact .media, .compact .preview, .compact .linkcard { display: none; }
+.sorts { display: flex; gap: 8px; overflow-x: auto; padding: 8px 16px; scrollbar-width: none; border-bottom: .5px solid var(--sep); }
+.sorts .chip { font-weight: 600; }
+/* Comments */
+.cm { position: relative; padding: 8px 16px 6px calc(16px + var(--d) * 14px); }
+.cm .line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--sep); }
+.lines-color .cm .line { width: 2px; }
+.cm .by { display: flex; align-items: center; gap: 6px; font: -apple-system-footnote; color: var(--fg2); }
+.cm .by img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; background: var(--fill); }
+.cm .by b { color: var(--fg); font-weight: 600; } .cm .by .op { color: #0079d3; }
+.cm .md { font: -apple-system-subheadline; line-height: 1.4; margin: 4px 0; overflow-wrap: anywhere; }
+.text-s .cm .md { font: -apple-system-footnote; } .text-l .cm .md { font: -apple-system-body; }
+.md p { margin: 0 0 .5em; } .md a { color: #0079d3; } .md blockquote { margin: 0 0 .5em; padding-left: 10px; border-left: 3px solid var(--sep); color: var(--fg2); }
+.md pre { white-space: pre-wrap; background: var(--fill); padding: 8px; border-radius: 8px; font: -apple-system-caption1; font-family: ui-monospace, monospace; }
+.cm .acts { display: flex; justify-content: flex-end; align-items: center; gap: 14px; color: var(--fg2); font: -apple-system-footnote; font-weight: 600; }
+.cm .acts button { border: 0; background: none; color: inherit; font: inherit; display: inline-flex; align-items: center; gap: 4px; padding: 2px; }
+.cm .acts svg { width: 18px; height: 18px; } .cm .acts .on-up { color: var(--up); } .cm .acts .on-down { color: var(--down); }
+.cm.folded .md, .cm.folded .acts { display: none; } .cm.hidden { display: none; }
+.cm .n { margin-left: auto; }
+.moreC { padding: 8px 16px 10px calc(16px + var(--d) * 14px); color: #0079d3; font: -apple-system-footnote; font-weight: 600; }
+.subhead { display: flex; align-items: center; gap: 12px; padding: 16px; }
+.subhead img { width: 56px; height: 56px; border-radius: 50%; background: var(--up); object-fit: cover; }
+.subhead .t { font: -apple-system-title2; font-weight: 700; }
+.sbar { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 8px 16px; }
+.sbox { width: 100%; box-sizing: border-box; border: 0; border-radius: 999px; padding: 9px 14px; font: -apple-system-body; background: var(--fill); color: var(--fg); }
+.post > .thumb { display: none; } .compact .post > .thumb { display: block; }

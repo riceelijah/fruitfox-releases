@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="rd.css"><script src="rd.js"></script>
+<div class="subhead" id="head"></div>
+<div class="feed-head"><div class="sorts" id="sorts"></div></div>
+<main id="feed"></main>
+<script>
+// A community: its posts with Hot/New/Top/Rising, and Join.
+const name = fruitfox.params.name, SORTS = { hot: 'Hot', new: 'New', top: 'Top', rising: 'Rising' };
+let sort = 'hot', f;
+async function load() {
+  await settings();
+  const joined = (await subscriptions()).find(s => s.display_name.toLowerCase() === name.toLowerCase());
+  $('#sorts').innerHTML = Object.entries(SORTS).map(([k, n]) => `<span class="chip tappable ${k === sort ? 'on' : ''}" data-sort="${k}">${n}</span>`).join('');
+  f = await feed($('#feed'), `/svc/shreddit/community-more-posts/${sort}/?name=${encodeURIComponent(name)}${sort === 'top' ? '&t=' + S.time : ''}`);
+  const icon = joined?.community_icon?.split('?')[0] || joined?.icon_img || [...f.posts.values()][0]?.icon || '';
+  $('#head').innerHTML = `<img alt="" src="${esc(icon)}"><div class="grow"><div class="t">r/${esc(name)}</div>
+    <div class="small secondary">${joined ? num(joined.subscribers) + ' members' : ''}</div></div>
+    <button class="${joined ? 'button plain' : 'button'}" id="join">${joined ? 'Joined' : 'Join'}</button>`;
+  $('#join').onclick = async () => { try { await joinSub(name, !joined); load(); } catch (e) { fruitfox.ui.toast(e.message); } };
+}
+$('#sorts').addEventListener('click', e => { const c = e.target.closest('[data-sort]'); if (c) { sort = c.dataset.sort; haptic('select'); load(); } });
+wirePosts($('#feed'), id => f?.posts.get(id));
+onNearEnd(() => f?.more());
+fruitfox.ui.buttons([{ id: 'create', symbol: 'plus', title: 'Create' }, { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+fruitfox.on('button', id => { if (id === 'create') fruitfox.ui.web(`${RD}/r/${name}/submit`); });
+fruitfox.on('refresh', load);
+load();
+</script>

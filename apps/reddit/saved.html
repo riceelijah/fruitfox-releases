@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="rd.css"><script src="rd.js"></script>
+<main id="feed"></main>
+<script>
+// Posts you saved in this app, newest first.
+let saved = [];
+async function load() {
+  await settings();
+  saved = (await fruitfox.storage.get('savedPosts')) || [];
+  $('#feed').innerHTML = (await Promise.all(saved.map(p => postHTML(p)))).join('') || '<div class="center secondary">Touch ⋯ on a post and choose Save.</div>';
+}
+wirePosts($('#feed'), id => saved.find(p => p.id === id));
+fruitfox.on('refresh', load);
+load();
+</script>

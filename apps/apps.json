@@ -14,5 +14,13 @@
     "version": "1",
     "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/hackernews.zip",
     "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/hackernews/icon.png"
+  },
+  {
+    "id": "reddit",
+    "name": "Reddit",
+    "summary": "Home and Popular, communities, threads, search, galleries and video, without ads; card or compact view, filters and switches for everything.",
+    "version": "1",
+    "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/reddit.zip",
+    "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/reddit/icon.png"
   }
 ]

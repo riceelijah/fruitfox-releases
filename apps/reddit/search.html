@@ -1,0 +1,35 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="rd.css"><script src="rd.js"></script>
+<div class="sbar"><input class="sbox" id="q" type="search" placeholder="Search Reddit" autocomplete="off"></div>
+<main id="list"></main>
+<script>
+// Search posts across Reddit (its own search results), then open them like any post.
+const found = new Map();
+async function run() {
+  const q = $('#q').value.trim(); if (!q) return;
+  found.clear(); $('#list').innerHTML = '<div class="spinner"></div>';
+  try {
+    const doc = await page(`/svc/shreddit/search/?q=${encodeURIComponent(q)}&type=link`);
+    const units = [...doc.querySelectorAll('[data-testid="search-post-unit"], [data-testid="sdui-post-unit"]')];
+    const rows = units.map(u => {
+      const ctx = JSON.parse(u.closest('[data-faceplate-tracking-context]')?.getAttribute('data-faceplate-tracking-context') || u.querySelector('[data-faceplate-tracking-context]')?.getAttribute('data-faceplate-tracking-context') || '{}');
+      const a = u.querySelector('a[data-testid="post-title"], a[data-testid="post-title-text"]');
+      if (!ctx.post || !a || found.has(ctx.post.id)) return '';  // Reddit nests two wrappers per result
+      const p = { id: ctx.post.id, sub: ctx.subreddit?.name, title: ctx.post.title, nsfw: ctx.post.nsfw, spoiler: ctx.post.spoiler, permalink: a.getAttribute('href'),
+        counts: (([v, c]) => `${num(v || 0)} votes · ${num(c || 0)} comments`)([...u.querySelectorAll('[data-testid="search-counter-row"] faceplate-number')].map(n => +n.getAttribute('number'))), thumb: u.querySelector('[data-testid="search_post_thumbnail"] img')?.getAttribute('src'),
+        score: 0, comments: 0, gallery: [], created: new Date().toISOString() };
+      if (p.nsfw && S.hideNSFW) return '';
+      found.set(p.id, p);
+      return `<div class="cell row tappable" data-r="${p.id}"><div class="grow"><div class="small secondary">r/${esc(p.sub)}</div><div class="headline">${esc(p.title)}</div>
+        <div class="small secondary">${esc(p.counts)}</div></div>${p.thumb ? `<img alt="" style="width:64px;height:64px;border-radius:10px;object-fit:cover" src="${esc(p.thumb)}">` : ''}</div>`;
+    }).join('');
+    $('#list').innerHTML = `<div class="list">${rows}</div>` || '';
+    if (!rows) $('#list').innerHTML = '<div class="center secondary">No results.</div>';
+  } catch (e) { $('#list').innerHTML = `<div class="center secondary">${esc(e.message)}</div>`; }
+}
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { $('#q').blur(); run(); } });
+$('#list').addEventListener('click', async e => {
+  const r = e.target.closest('[data-r]'); if (!r) return;
+  const p = found.get(r.dataset.r); await fruitfox.storage.set('post', p); fruitfox.ui.push('post.html?id=' + p.id, 'r/' + p.sub);
+});
+settings();
+</script>

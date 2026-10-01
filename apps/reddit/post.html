@@ -1,0 +1,76 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="rd.css"><script src="rd.js"></script>
+<main id="post"></main>
+<div class="sorts" id="sorts"></div>
+<main id="comments"><div class="spinner"></div></main>
+<script>
+// A post and its comments. Tap a comment to fold its thread; "more replies" loads the rest of a thread.
+const CS = { confidence: 'Best', top: 'Top', new: 'New', controversial: 'Controversial', old: 'Old', qa: 'Q&A' };
+const LINES = ['#ff4500', '#0079d3', '#46d160', '#ffb000', '#ea0027', '#7193ff', '#ff66ac'];
+let p, csort;
+function commentRows(doc, op) {
+  return [...doc.querySelectorAll('shreddit-comment, faceplate-partial[src*="more-comments"]')].map(c => {
+    if (c.tagName === 'FACEPLATE-PARTIAL') {
+      const d = +(c.getAttribute('src').match(/startingDepth=(\d+)/)?.[1] || 0);
+      const cursor = c.querySelector('input[name="cursor"]')?.value || '';
+      return `<div class="moreC tappable" style="--d:${d}" data-more="${esc(c.getAttribute('src'))}" data-cursor="${esc(cursor)}">More replies</div>`;
+    }
+    const d = +c.getAttribute('depth') || 0, author = c.getAttribute('author') || '[deleted]', id = c.getAttribute('thingid');
+    const body = c.querySelector(':scope > [slot="comment"]') || c.querySelector('[slot="comment"]');
+    const avatar = c.querySelector('[slot="commentAvatar"] img')?.getAttribute('src');
+    const folded = (S.collapseBots && author === 'AutoModerator') || (S.collapseReplies && d > 0);
+    const lines = Array.from({ length: d }, (_, i) => `<span class="line" style="left:${22 + i * 14}px;${S.colorLines ? 'background:' + LINES[i % LINES.length] : ''}"></span>`).join('');
+    return `<div class="cm tappable ${folded ? 'folded' : ''}" style="--d:${d}" data-depth="${d}" data-c="${esc(id)}">${lines}
+      <div class="by">${S.avatars && avatar ? `<img alt="" src="${esc(avatar)}">` : ''}<b class="${author === op ? 'op' : ''}">${esc(author)}</b>${author === op ? '<span>OP</span>' : ''}
+        <span>· ${ago(c.getAttribute('created'))}</span><span class="n"></span></div>
+      <div class="md">${clean(body?.innerHTML)}</div>
+      <div class="acts"><button data-reply>Reply</button><button data-cv="1">${IC.up}${num(+c.getAttribute('score') || 0)}</button><button data-cv="-1">${IC.down}</button></div></div>`;
+  }).join('');
+}
+async function loadComments() {
+  $('#sorts').innerHTML = Object.entries(CS).map(([k, n]) => `<span class="chip tappable ${k === csort ? 'on' : ''}" data-cs="${k}">${n}</span>`).join('');
+  try {
+    const doc = await page(`/svc/shreddit/comments/r/${p.sub}/${p.id}?sort=${csort}`);
+    $('#comments').innerHTML = commentRows(doc, p.author) || '<div class="center secondary">No comments yet.</div>';
+  } catch (e) { $('#comments').innerHTML = `<div class="center secondary">${esc(e.message)}</div>`; }
+}
+async function load() {
+  await settings();
+  p = await fruitfox.storage.get('post');
+  csort ||= S.csort;
+  $('#post').innerHTML = await postHTML(p, { full: true });
+  mark('read', p.id);
+  loadComments();
+}
+/// Folding: a comment hides every following one that's deeper, until one at its depth or shallower.
+function fold(c) {
+  const on = c.classList.toggle('folded'), d = +c.dataset.depth;
+  let n = 0;
+  for (let x = c.nextElementSibling; x && +(x.dataset.depth ?? x.style.getPropertyValue('--d')) > d; x = x.nextElementSibling) { x.classList.toggle('hidden', on); n++; }
+  c.querySelector('.n').textContent = on && n ? `+${n}` : '';
+}
+$('#comments').addEventListener('click', async e => {
+  const more = e.target.closest('[data-more]');
+  if (more) {
+    // Reddit loads the rest of a thread with a POST of the cursor it put in the page.
+    more.textContent = 'Loading…';
+    try {
+      const body = new URLSearchParams({ cursor: more.dataset.cursor, csrf_token: (await fruitfox.cookie('csrf_token', 'www.reddit.com')) || '' }).toString();
+      const r = await fruitfox.fetch(RD + more.dataset.more, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'text/html' }, body });
+      more.outerHTML = commentRows(new DOMParser().parseFromString(r.body, 'text/html'), p.author);
+    } catch (err) { more.textContent = err.message; }
+    return;
+  }
+  const c = e.target.closest('.cm'); if (!c) return;
+  const a = e.target.closest('.md a'); if (a) { e.preventDefault(); return openLink(a.href); }
+  if (e.target.closest('[data-reply]')) return fruitfox.ui.web(RD + p.permalink + 'comment/' + c.dataset.c.replace('t1_', '') + '/');
+  const v = e.target.closest('[data-cv]');
+  if (v) { try { const n = await vote(c.dataset.c, +v.dataset.cv); c.querySelectorAll('[data-cv]').forEach(b => { b.classList.toggle('on-up', n > 0 && b.dataset.cv === '1'); b.classList.toggle('on-down', n < 0 && b.dataset.cv === '-1'); }); } catch (err) { fruitfox.ui.toast(err.message); } return; }
+  haptic('light'); fold(c);
+});
+$('#sorts').addEventListener('click', e => { const c = e.target.closest('[data-cs]'); if (c) { csort = c.dataset.cs; haptic('select'); $('#comments').innerHTML = '<div class="spinner"></div>'; loadComments(); } });
+wirePosts($('#post'), () => p, { full: true });
+fruitfox.ui.buttons([{ id: 'reply', symbol: 'arrowshape.turn.up.left', title: 'Comment' }, { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+fruitfox.on('button', id => { if (id === 'reply') fruitfox.ui.web(RD + p.permalink); });
+fruitfox.on('refresh', load);
+load();
+</script>

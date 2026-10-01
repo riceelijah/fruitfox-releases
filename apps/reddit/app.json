@@ -1,0 +1,12 @@
+{
+  "name": "Reddit",
+  "version": "1",
+  "icon": "icon.png",
+  "sites": ["reddit.com", "redd.it", "redditmedia.com", "redditstatic.com"],
+  "tabs": [
+    { "title": "Home", "symbol": "house", "page": "home.html" },
+    { "title": "Communities", "symbol": "person.3", "page": "communities.html" },
+    { "title": "Search", "symbol": "magnifyingglass", "page": "search.html" },
+    { "title": "Inbox", "symbol": "bell", "page": "inbox.html" }
+  ]
+}

@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="rd.css"><script src="rd.js"></script>
+<div class="feed-head"><div class="sorts" id="sorts"></div></div>
+<main id="feed"></main>
+<script>
+// Home: your communities (signed in) or Popular, sorted like the Reddit app.
+const FEEDS = { home: 'Home', popular: 'Popular' }, SORTS = { best: 'Best', hot: 'Hot', new: 'New', top: 'Top', rising: 'Rising' };
+let which, sort, f;
+async function load() {
+  await settings();
+  which ||= S.feed; sort ||= S.sort;
+  $('#sorts').innerHTML = Object.entries(FEEDS).map(([k, n]) => `<span class="chip tappable ${k === which ? 'on' : ''}" data-feed="${k}">${n}</span>`).join('')
+    + '<span style="width:1px;background:var(--sep);flex:none"></span>'
+    + Object.entries(SORTS).map(([k, n]) => `<span class="chip tappable ${k === sort ? 'on' : ''}" data-sort="${k}">${n}</span>`).join('');
+  fruitfox.ui.title(FEEDS[which]);
+  const s = sort === 'best' ? '' : `?sort=${sort}${sort === 'top' ? '&t=' + S.time : ''}`;
+  f = await feed($('#feed'), `/svc/shreddit/feeds/${which}-feed${s}`);
+}
+$('#sorts').addEventListener('click', e => {
+  const c = e.target.closest('[data-feed],[data-sort]'); if (!c) return;
+  if (c.dataset.feed) which = c.dataset.feed; else sort = c.dataset.sort;
+  haptic('select'); scrollTo(0, 0); load();
+});
+wirePosts($('#feed'), id => f?.posts.get(id));
+onNearEnd(() => f?.more());
+fruitfox.ui.buttons([{ id: 'create', symbol: 'plus', title: 'Create' }, { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+fruitfox.on('button', id => { if (id === 'create') fruitfox.ui.web(RD + '/submit'); });
+fruitfox.on('refresh', load);
+load();
+</script>
