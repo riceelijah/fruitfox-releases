@@ -392,6 +392,20 @@ function openLink(e) {
 }
 const openProfile = openLink;
 
+/// A post's media id from its shortcode (instagram.com/p/<code>): base 64 in Instagram's alphabet.
+const shortcodeId = code => [...code.slice(0, 11)].reduce((n, c) => n * 64n + BigInt('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'.indexOf(c)), 0n).toString();
+
+/// The instagram.com link the app was opened from (Open Links in App, a notification): shows that post, profile or hashtag.
+async function openInitialURL() {
+  const u = await fruitfox.initialURL().catch(() => null);
+  if (!u) return;
+  const [a, b, c] = new URL(u).pathname.split('/').filter(Boolean);
+  if (['p', 'reel', 'reels', 'tv'].includes(a) && b) fruitfox.ui.push('post.html?id=' + shortcodeId(b), 'Post');
+  else if (a === 'explore' && b === 'tags' && c) fruitfox.ui.push('tag.html?q=' + encodeURIComponent('#' + c), '#' + c);
+  else if (a === 'stories' && b && b !== 'highlights') fruitfox.ui.push('profile.html?username=' + encodeURIComponent(b), b);
+  else if (a && !b && !['explore', 'direct', 'accounts', 'reels'].includes(a)) fruitfox.ui.push('profile.html?username=' + encodeURIComponent(a), a);
+}
+
 /// Every post object anywhere in a response (Explore and search nest them in several layouts).
 function findMedia(x, out = [], seen = new Set()) {
   if (!x || typeof x !== 'object') return out;
