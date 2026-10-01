@@ -2,6 +2,8 @@
 
 A [Fruitfox App](https://github.com/riceelijah/fruitfox-releases/tree/main/apps): a website's own app inside Fruitfox, the iOS browser. Its pages are HTML, CSS and JavaScript that Fruitfox shows in a native frame (tab bar, navigation, sheets), signed in with your own account on the site. To install it, open Fruitfox › Settings › Apps › Install from File and choose this zip.
 
+How Fruitfox Apps work, and how to make or change one: [the Fruitfox Apps guide](../GUIDE.md).
+
 ## About Instagram
 
 The app allows users to interact with Instagram's content by browsing posts, reels, and comments, managing messages, following others, and editing media. It supports offline access, personalized feeds, search functionality, and full-screen editing with gestures and visual feedback.
