@@ -33,12 +33,11 @@ async function api(path, { method = 'GET', form } = {}) {
 }
 
 // GraphQL: what instagram.com itself uses for most things now. It needs two tokens from instagram.com's page, and the
-// site's query IDs, which Instagram changes every few weeks: when a query stops working, the new doc_id is in
-// instagram.com's scripts as __d("<name>_instagramRelayOperation",…exports="<id>").
-// ponytail: hard-coded IDs; read them from the site's scripts at runtime when they start changing often.
+// site's query IDs, which Instagram changes every few weeks. These are the ones last known; when a query stops working,
+// `updateDocs` finds the current IDs in instagram.com's scripts, as __d("<name>_instagramRelayOperation",…exports="<id>").
 const DOCS = {
   profile: ['/api/graphql', '28036671149327607', 'PolarisProfilePageContentQuery'],
-  profilePosts: ['/graphql/query', '28570182382647478', 'PolarisProfilePostsQuery'],
+  profilePosts: ['/graphql/query', '28991540097136703', 'PolarisProfilePostsQuery'],
   reelsTab: ['/graphql/query', '29628758406714645', 'PolarisProfileReelsTabContentQuery'],
   tagged: ['/graphql/query', '39772566182330372', 'PolarisProfileTaggedTabContentQuery'],
   taggedMore: ['/graphql/query', '28751062417852963', 'PolarisProfileTaggedTabContentQuery_connection'],
@@ -47,7 +46,7 @@ const DOCS = {
   reels: ['/graphql/query', '28230813126620480', 'PolarisClipsTabDesktopPaginationQuery'],
   activity: ['/graphql/query', '28990670510517370', 'PolarisActivityFeedStoriesViewQuery'],
   inbox: ['/api/graphql', '28988285840768396', 'PolarisDirectInboxQuery'],
-  thread: ['/api/graphql', '28288012930891325', 'IGDThreadDetailQuery'],
+  thread: ['/api/graphql', '28786168517646574', 'IGDThreadDetailQuery'],
   like: ['/api/graphql', '27182485238052618', 'usePolarisLikeMediaXIGLikeMutation'],
   unlike: ['/api/graphql', '27345296031770102', 'usePolarisLikeMediaXIGUnlikeMutation'],
   save: ['/api/graphql', '27365486596441074', 'usePolarisSaveMediaSaveMutation'],
@@ -69,47 +68,36 @@ async function webTokens(fresh) {
   fruitfox.storage.set('tokens', tokens);
   return tokens;
 }
-let docCache = null;
+// IDs found in instagram.com's scripts: { key: [the built-in ID it replaced, the ID found] }. A found ID only counts
+// while the built-in one is the same, so an app update with newer IDs isn't shadowed by older finds.
+let found = null;
 async function getDoc(key) {
-  if (docCache && docCache[key]) return docCache[key];
-  const stored = await fruitfox.storage.get('doc_ids');
-  if (stored && stored[key]) {
-    docCache = stored;
-    return stored[key];
-  }
-  return DOCS[key][1];
+  found ||= (await fruitfox.storage.get('doc_ids2')) || {};
+  const [was, doc] = found[key] || [];
+  return was === DOCS[key][1] ? doc : DOCS[key][1];
 }
 
+/// Reads the current query IDs from the scripts of a few instagram.com pages (signed in, they load the most), at most
+/// every 6 hours. Signed out, '/' finds profile, posts, highlights, activity and threads, and /reels/ likes and saves.
 async function updateDocs() {
-  const lastScan = await fruitfox.storage.get('doc_ids_last_scan');
-  if (lastScan && Date.now() - lastScan < 24 * 60 * 60 * 1000) return;
-  fruitfox.log('Updating Instagram GraphQL Query IDs...');
-  const html1 = (await fruitfox.fetch(IG + '/', { headers: { Accept: 'text/html' } })).body;
-  const html2 = (await fruitfox.fetch(IG + '/instagram/', { headers: { Accept: 'text/html' } })).body;
-  const scripts = [...html1.matchAll(/(?:href|src)="([^"]+\.js)"/g), ...html2.matchAll(/(?:href|src)="([^"]+\.js)"/g)].map(m => m[1]);
-  const newDocs = { ...docCache, ...(await fruitfox.storage.get('doc_ids')) };
-  const namesToFind = new Set(Object.keys(DOCS).map(k => DOCS[k][2]));
-  const regex = /__d\("([^"]+)_instagramRelayOperation",\[\],\(function\([^)]*\)\{.*?exports="(\d+)"/g;
-
-  for (const s of [...new Set(scripts)]) {
-    if (namesToFind.size === 0) break;
-    const url = s.startsWith('/') ? IG + s : s;
-    try {
-      const js = (await fruitfox.fetch(url)).body;
-      for (const m of js.matchAll(regex)) {
-        const name = m[1], doc = m[2];
-        const key = Object.keys(DOCS).find(k => DOCS[k][2] === name);
-        if (key) {
-          newDocs[key] = doc;
-          namesToFind.delete(name);
-        }
-      }
-    } catch (e) { }
-  }
-  docCache = newDocs;
-  await fruitfox.storage.set('doc_ids', newDocs);
+  const last = await fruitfox.storage.get('doc_ids_last_scan');
+  if (last && Date.now() - last < 6 * 3600e3) return;
   await fruitfox.storage.set('doc_ids_last_scan', Date.now());
-  fruitfox.log('Updated Instagram GraphQL Query IDs');
+  const want = new Map(Object.entries(DOCS).map(([k, d]) => [d[2], k]));
+  const pages = await Promise.all(['/', '/reels/', '/explore/', '/direct/inbox/'].map(p =>
+    fruitfox.fetch(IG + p, { headers: { Accept: 'text/html' } }).then(r => r.body).catch(() => '')));
+  const scripts = [...new Set(pages.flatMap(h => [...h.matchAll(/(?:href|src)="([^"]+\.js)"/g)].map(m => m[1])))];
+  const rx = /__d\("([^"]+)_instagramRelayOperation",\[\],\(function\([^)]*\)\{.*?exports="(\d+)"/g;
+  found ||= (await fruitfox.storage.get('doc_ids2')) || {};
+  for (let i = 0; i < scripts.length && want.size; i += 6) {
+    const js = await Promise.all(scripts.slice(i, i + 6).map(s => fruitfox.fetch(s.startsWith('/') ? IG + s : s).then(r => r.body).catch(() => '')));
+    for (const [, name, doc] of js.join('\n').matchAll(rx)) {
+      const key = want.get(name);
+      if (key) { found[key] = [DOCS[key][1], doc]; want.delete(name); }
+    }
+  }
+  await fruitfox.storage.set('doc_ids2', found);
+  fruitfox.log(`Query IDs: scanned ${scripts.length} scripts; not found: ${[...want.keys()].join(', ') || 'none'}`);
 }
 
 async function gql(which, variables, retried) {
