@@ -1,0 +1,72 @@
+/* YouTube's iOS app on the kit: edge-to-edge thumbnails, avatar + two-line titles, pill chips and buttons, red progress. */
+:root { --yt: #ff0033; --pill: var(--fill); }
+.chips { position: sticky; top: 0; z-index: 3; background: var(--bg); }
+.chip { font-weight: 600; } .chip.on { background: var(--fg); color: var(--bg); }
+.v { display: block; padding-bottom: 14px; }
+.thumbw { position: relative; aspect-ratio: 16 / 9; background: var(--fill); overflow: hidden; }
+.thumbw img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dur { position: absolute; right: 8px; bottom: 8px; background: rgb(0 0 0 / .75); color: #fff; font: 600 12px -apple-system; padding: 2px 5px; border-radius: 4px; }
+.dur.live { background: var(--yt); }
+.prog { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--yt); }
+.vmeta { display: flex; gap: 12px; padding: 10px 12px 0; }
+.av { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: none; background: var(--fill); }
+.vt { font: -apple-system-subheadline; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.vs { font: -apple-system-caption1; color: var(--fg2); margin-top: 3px; }
+.vmore { border: 0; background: none; color: var(--fg); font-size: 18px; padding: 0 0 0 4px; align-self: flex-start; }
+.v.watched .vt { color: var(--fg2); } .dimWatched .v.watched { opacity: .55; }
+/* Compact rows (related, settings › Layout › Compact) */
+.compact .v, .row-v { display: flex; gap: 10px; padding: 6px 12px; }
+.compact .thumbw, .row-v .thumbw { width: 168px; flex: none; border-radius: 8px; }
+.compact .vmeta, .row-v .vmeta { padding: 0; flex: 1; min-width: 0; }
+.compact .av, .row-v .av { display: none; }
+.grid2 #list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 4px; }
+.grid2 .v .av { display: none; } .grid2 .vmeta { padding: 6px 6px 0; }
+.noThumbs .thumbw { display: none; }
+/* Shorts shelf */
+.shelf { display: flex; gap: 8px; overflow-x: auto; padding: 4px 12px 16px; scrollbar-width: none; }
+.shelf h3 { display: none; }
+.short { flex: none; width: 150px; } .short .st { aspect-ratio: 9 / 16; border-radius: 10px; overflow: hidden; background: var(--fill); position: relative; }
+.short img { width: 100%; height: 100%; object-fit: cover; }
+.short .sc { position: absolute; left: 8px; right: 8px; bottom: 8px; color: #fff; font: 600 13px -apple-system; text-shadow: 0 1px 3px #000; }
+.shelf-title { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font: -apple-system-headline; }
+/* Watch page */
+.player { position: sticky; top: 0; z-index: 4; background: #000; aspect-ratio: 16 / 9; }
+.player video { width: 100%; height: 100%; display: block; }
+.skip { position: absolute; right: 10px; bottom: 44px; background: rgb(0 0 0 / .7); color: #fff; border: 0; border-radius: 6px; padding: 7px 12px; font: 600 13px -apple-system; }
+.wt { padding: 12px 12px 4px; font: -apple-system-title3; font-weight: 700; line-height: 1.25; }
+.ws { padding: 0 12px; font: -apple-system-caption1; color: var(--fg2); }
+.ws b { color: var(--fg); }
+.ch { display: flex; align-items: center; gap: 10px; padding: 12px; }
+.ch .n { font: -apple-system-subheadline; font-weight: 600; } .ch .s { font: -apple-system-caption1; color: var(--fg2); }
+.sub { margin-left: auto; border: 0; border-radius: 999px; padding: 8px 16px; background: var(--fg); color: var(--bg); font: -apple-system-subheadline; font-weight: 600; }
+.sub.on { background: var(--pill); color: var(--fg); }
+.acts { display: flex; gap: 8px; overflow-x: auto; padding: 0 12px 12px; scrollbar-width: none; }
+.acts .pill { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 999px; background: var(--pill);
+  border: 0; color: var(--fg); font: -apple-system-footnote; font-weight: 600; }
+.acts .pill.on { background: var(--fg); color: var(--bg); }
+.acts .split { padding: 0; } .acts .split button { border: 0; background: none; color: inherit; font: inherit; height: 34px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; }
+.acts .split button + button { border-left: 1px solid var(--sep); }
+.acts .split button.on { color: var(--yt); }
+.box { margin: 0 12px 12px; padding: 10px 12px; border-radius: 12px; background: var(--pill); }
+.box .h { font: -apple-system-subheadline; font-weight: 700; } .box .h span { color: var(--fg2); font-weight: 400; margin-left: 6px; }
+.desc { font: -apple-system-footnote; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 6px; }
+.desc.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.desc a { color: #3ea6ff; }
+.chapters { display: flex; gap: 8px; overflow-x: auto; padding: 0 12px 12px; scrollbar-width: none; }
+.chapters button { flex: none; border: 0; border-radius: 10px; background: var(--pill); color: var(--fg); padding: 8px 10px; font: -apple-system-caption1; text-align: left; max-width: 180px; }
+.chapters b { display: block; color: #3ea6ff; }
+/* Comments */
+.cmt { display: flex; gap: 10px; padding: 10px 12px; }
+.cmt .av { width: 28px; height: 28px; }
+.cmt .by { font: -apple-system-caption1; color: var(--fg2); } .cmt .by b { color: var(--fg); font-weight: 600; }
+.cmt .tx { font: -apple-system-subheadline; margin: 2px 0 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cmt .tb { display: flex; gap: 16px; font: -apple-system-caption1; color: var(--fg2); }
+.cmt .rep { color: #3ea6ff; font-weight: 600; }
+/* Channel */
+.banner { aspect-ratio: 6 / 1; background: var(--fill) center / cover; margin: 8px 12px 0; border-radius: 12px; }
+.chead { display: flex; gap: 14px; align-items: center; padding: 14px 12px; }
+.chead .big { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--fill); }
+.chead .t { font: -apple-system-title2; font-weight: 700; }
+.sbar { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 8px 12px; }
+.sbox { width: 100%; box-sizing: border-box; border: 0; border-radius: 999px; padding: 9px 14px; font: -apple-system-body; background: var(--fill); color: var(--fg); }
+.sugg .cell { display: flex; gap: 10px; align-items: center; }

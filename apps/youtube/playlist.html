@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="yt.css"><script src="yt.js"></script>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// A YouTube playlist (VL…), or one of yours on this phone: ?local=history | watchLater | liked.
+const id = fruitfox.params.id, loc = fruitfox.params.local;
+let token;
+async function load() {
+  await settings();
+  try {
+    if (loc) {
+      const vs = await local(loc, []);
+      return vs.length ? show($('#list'), vs, { row: true }) : ($('#list').innerHTML = '<div class="center secondary">Nothing here yet.</div>');
+    }
+    const r = await api('browse', { browseId: id.startsWith('VL') ? id : 'VL' + id });
+    token = nextToken(r);
+    fruitfox.ui.title(text(find(r, 'pageHeaderViewModel')[0]?.title?.dynamicTextViewModel?.text) || find(r, 'playlistMetadataRenderer')[0]?.title || 'Playlist');
+    await show($('#list'), videos(r), { row: true });
+  } catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+wireVideos($('#list'));
+onNearEnd(async () => { if (!token) return; const r = await api('browse', { continuation: token }); token = nextToken(r); await show($('#list'), videos(r), { append: true, row: true }); });
+fruitfox.ui.buttons(loc ? [{ id: 'clear', symbol: 'trash', title: 'Clear' }] : BUTTONS);
+fruitfox.on('button', async b => { if (b === 'clear') { await fruitfox.storage.set(loc, []); load(); } });
+fruitfox.on('refresh', load);
+load();
+</script>

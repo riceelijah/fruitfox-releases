@@ -1,0 +1,47 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="yt.css"><script src="yt.js"></script>
+<main id="page"><div class="spinner"></div></main>
+<script>
+// You: your account (or not), history, Watch Later, liked videos, subscriptions on this phone, and Settings.
+async function load() {
+  await settings();
+  const signed = await signedIn(), subs = await localSubs();
+  const [h, wl, lk] = await Promise.all(['history', 'watchLater', 'liked'].map(k => local(k, [])));
+  const shelf = vs => `<div class="shelf">${vs.slice(0, 12).map(v => `<div class="tappable" style="flex:none;width:160px" data-vid="${esc(v.id)}"><div class="thumbw" style="border-radius:10px"><img alt="" src="${esc(v.thumb || `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`)}"></div><div class="vt" style="font-size:13px;margin-top:6px">${esc(v.title)}</div><div class="vs">${esc(v.channel || '')}</div></div>`).join('')}</div>`;
+  [...h, ...wl, ...lk].forEach(v => known.set(v.id, v));
+  $('#page').innerHTML = `
+    <div class="chead"><div class="grow"><div class="t">${signed ? 'Signed in to YouTube' : 'You'}</div>
+      <div class="small secondary">${signed ? (S.useAccount ? 'Using your account for Home, Subscriptions and likes.' : 'Your account isn’t used (Settings).') : 'Everything is kept on this phone. Sign in to use your YouTube account.'}</div></div></div>
+    <div style="padding:0 12px 8px;display:flex;gap:8px;flex-wrap:wrap">${signed ? '' : '<button class="button" id="signin">Sign In</button>'}
+      ${signed && S.useAccount ? '<button class="button plain" id="import">Copy Subscriptions Here</button>' : ''}<button class="button plain" id="settings">Settings</button></div>
+    <div class="shelf-title tappable" data-list="history">History ›</div>${h.length ? shelf(h) : '<div class="pad small secondary">Videos you watch show here.</div>'}
+    <div class="shelf-title tappable" data-list="watchLater">Watch Later ›</div>${wl.length ? shelf(wl) : '<div class="pad small secondary">Tap Save on a video, or ⋮ › Save to Watch Later.</div>'}
+    <div class="shelf-title tappable" data-list="liked">Liked Videos ›</div>${lk.length ? shelf(lk) : '<div class="pad small secondary">Videos you like show here.</div>'}
+    ${signed && S.useAccount ? '<div class="list inset"><div class="cell tappable" data-pl="WL">Your YouTube Watch Later</div><div class="cell tappable" data-pl="LL">Your YouTube Liked Videos</div></div>' : ''}
+    <div class="shelf-title">Subscriptions on This Phone</div>
+    <div class="list">${subs.map(c => `<div class="cell row"><img alt="" class="av" src="${esc(c.avatar || '')}"><div class="grow tappable" data-chan="${esc(c.id)}" data-name="${esc(c.name)}">${esc(c.name)}</div><button class="button plain" data-unsub="${esc(c.id)}">Unsubscribe</button></div>`).join('') || '<div class="cell secondary">None yet.</div>'}</div>`;
+}
+$('#page').addEventListener('click', async e => {
+  const t = e.target;
+  if (t.id === 'settings') return openSettings();
+  if (t.id === 'signin') { await fruitfox.ui.web('https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F'); return load(); }
+  if (t.id === 'import') {
+    t.textContent = 'Copying…';
+    try {
+      const r = await api('browse', { browseId: 'FEchannels' });
+      const got = channels(r).map(c => ({ id: c.id, name: c.name, avatar: c.avatar }));
+      const all = [...(await localSubs()), ...got].filter((c, i, a) => a.findIndex(x => x.id === c.id) === i).sort((a, b) => a.name.localeCompare(b.name));
+      await fruitfox.storage.set('subs', all); fruitfox.ui.toast(`Copied ${got.length} subscriptions`);
+    } catch (err) { fruitfox.ui.toast(err.message); }
+    return load();
+  }
+  const l = t.closest('[data-list]'); if (l) return fruitfox.ui.push('playlist.html?local=' + l.dataset.list, l.textContent.replace(' ›', ''));
+  const pl = t.closest('[data-pl]'); if (pl) return fruitfox.ui.push('playlist.html?id=' + pl.dataset.pl, pl.textContent);
+  const u = t.closest('[data-unsub]'); if (u) { await fruitfox.storage.set('subs', (await localSubs()).filter(c => c.id !== u.dataset.unsub)); haptic('light'); return load(); }
+  const c = t.closest('[data-chan]'); if (c) return fruitfox.ui.push('channel.html?id=' + c.dataset.chan, c.dataset.name);
+  const v = t.closest('[data-vid]'); if (v) return watch(known.get(v.dataset.vid));
+});
+fruitfox.ui.buttons(BUTTONS);
+fruitfox.on('refresh', load);
+addEventListener('pageshow', load);
+load();
+</script>

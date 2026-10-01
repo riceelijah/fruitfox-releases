@@ -1,0 +1,33 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="yt.css"><script src="yt.js"></script>
+<div class="chips" id="chips"></div>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// Home: YouTube's recommendations (signed in), or your subscriptions on this phone, newest first.
+let token, chips = [];
+async function load(chipToken) {
+  await settings();
+  try {
+    if (await account()) {
+      const r = chipToken ? await api('browse', { continuation: chipToken }) : await api('browse', { browseId: 'FEwhat_to_watch' });
+      if (!chipToken) chips = find(r, 'chipCloudChipRenderer').map(c => ({ name: text(c.text), token: find(c, 'token')[0], on: c.isSelected }));
+      $('#chips').innerHTML = chips.map(c => `<span class="chip tappable ${c.on ? 'on' : ''}" data-t="${esc(c.token || '')}">${esc(c.name)}</span>`).join('');
+      token = nextToken(r);
+      const vs = videos(r);
+      if (vs.length) return show($('#list'), vs);
+    }
+    $('#chips').innerHTML = '';
+    const vs = await localFeed();
+    if (vs.length) return show($('#list'), vs);
+    $('#list').innerHTML = `<div class="center"><div class="headline">Watch what you subscribe to</div>
+      <div class="secondary">Search for a channel and tap Subscribe; its new videos show here. No account needed. Or sign in to YouTube in You.</div>
+      <button class="button" id="find">Search YouTube</button></div>`;
+  } catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+$('#chips').addEventListener('click', e => { const c = e.target.closest('[data-t]'); if (!c) return; chips.forEach(x => x.on = x.token === c.dataset.t); haptic('select'); $('#list').innerHTML = '<div class="spinner"></div>'; load(c.dataset.t); });
+$('#list').addEventListener('click', e => { if (e.target.id === 'find') fruitfox.ui.push('search.html', 'Search'); });
+wireVideos($('#list'));
+onNearEnd(async () => { if (!token) return; const r = await api('browse', { continuation: token }); token = nextToken(r); await show($('#list'), videos(r), { append: true }); });
+fruitfox.ui.buttons(BUTTONS);
+fruitfox.on('refresh', () => load());
+load();
+</script>

@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="yt.css"><script src="yt.js"></script>
+<main id="reel"><div class="spinner"></div></main>
+<script>
+// Shorts: from your account's feeds (signed in), your subscriptions on this phone, or YouTube's popular Shorts.
+// Tap one to watch in YouTube's own Shorts player (swipe for more).
+async function load() {
+  await settings();
+  if (S.hideShorts) { $('#reel').innerHTML = '<div class="center"><div class="headline">Shorts are hidden</div><div class="secondary">Turn off Hide Shorts in Settings to watch them here.</div></div>'; return; }
+  try {
+    let ids = [];
+    if (await account()) for (const b of ['FEwhat_to_watch', 'FEsubscriptions']) ids.push(...videos(await api('browse', { browseId: b })).filter(v => v.short).map(v => v.id));
+    ids.push(...(await localFeed()).filter(v => v.short).map(v => v.id));
+    if (ids.length < 5) ids.push(...videos(await api('search', { query: '#shorts' })).filter(v => v.short).map(v => v.id));
+    ids = [...new Set(ids)];
+    if (!ids.length) { $('#reel').innerHTML = '<div class="center secondary">No Shorts right now.</div>'; return; }
+    $('#reel').innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px">' + ids.map(i => `<div class="short tappable" style="width:auto" data-short="${esc(i)}"><div class="st"><img alt="" loading="lazy" src="https://i.ytimg.com/vi/${esc(i)}/oar2.jpg"></div></div>`).join('') + '</div>';
+  } catch (e) { $('#reel').innerHTML = errorHTML(e); }
+}
+fruitfox.ui.buttons(BUTTONS);
+fruitfox.on('refresh', load);
+$('#reel').addEventListener('click', e => { const s = e.target.closest('[data-short]'); if (s) openShort(s.dataset.short); });
+load();
+</script>

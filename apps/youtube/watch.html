@@ -1,0 +1,134 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="yt.css"><script src="yt.js"></script>
+<div class="player" id="player"></div>
+<main id="info"></main>
+<div class="chapters" id="chapters"></div>
+<div id="cbox"></div>
+<main id="list"></main>
+<script>
+// Watching: the video (HLS in Fruitfox's player), its details, channel, likes, chapters, comments and related videos.
+const id = fruitfox.params.v;
+let v, s, next, segments = [], commentsToken, liked = false, disliked = false;
+const fmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(n);
+const hms = t => { t = Math.floor(t); const h = t / 3600 | 0, m = (t % 3600) / 60 | 0, x = t % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+
+async function load() {
+  await settings();
+  v = (await local('video', null))?.id === id ? await local('video') : { id };
+  $('#player').innerHTML = `<img alt="" style="width:100%;height:100%;object-fit:cover" src="https://i.ytimg.com/vi/${esc(id)}/hqdefault.jpg">`;
+  const [st, nx] = await Promise.allSettled([streams(id), api('next', { videoId: id })]);
+  next = nx.value;
+  s = st.value || { details: {}, captions: [] };
+  if (s.src) player(); else embedPoster();
+  info();
+  if (S.related && next) { const rel = videos(find(next, 'secondaryResults')); await show($('#list'), rel, { row: S.layout !== 'large' }); }
+  if (S.comments && next) comments();
+  if (S.history) addToList('history', { ...v, ...(s ? { title: s.details.title, channel: s.details.author, channelId: s.details.channelId } : {}) });
+}
+
+/// No stream for this page: the thumbnail with a play button, which opens YouTube's player (from where you left off).
+function embedPoster() {
+  $('#player').insertAdjacentHTML('beforeend', '<button id="play" style="position:absolute;inset:0;margin:auto;width:68px;height:48px;border:0;border-radius:14px;background:var(--yt);color:#fff;font-size:22px">▶</button>');
+  $('#play').onclick = async () => {
+    const p = (await positions())[id];
+    await playInYouTube(id, S.resume && p ? p[0] : 0);
+  };
+  if (S.autoplay) $('#play').click();
+}
+function player() {
+  const video = Object.assign(document.createElement('video'), { controls: true, playsInline: true, src: s.src, poster: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, loop: !!S.loop });
+  $('#player').replaceChildren(video);
+  video.addEventListener('loadedmetadata', async () => {
+    video.playbackRate = +S.speed;
+    const p = (await positions())[id];
+    if (S.resume && p && p[0] > 10 && p[0] < p[1] - 15) video.currentTime = p[0];
+  });
+  if (S.autoplay) video.play().catch(() => {});
+  if (S.captions) captionTrack(video, s.captions).catch(() => {});
+  let last = 0;
+  video.addEventListener('timeupdate', () => {
+    const t = video.currentTime;
+    if (Math.abs(t - last) > 5) { last = t; savePosition(id, t, video.duration || 0); }
+    const seg = segments.find(g => t >= g.segment[0] && t < g.segment[1] - 0.5);
+    let btn = $('#player .skip');
+    if (seg && S.sbAuto) { video.currentTime = seg.segment[1]; fruitfox.ui.toast('Skipped ' + seg.category.replace('_', ' ')); }
+    else if (seg && !btn) { btn = Object.assign(document.createElement('button'), { className: 'skip', textContent: 'Skip ' + seg.category.replace('_', ' ') }); btn.onclick = () => { video.currentTime = seg.segment[1]; btn.remove(); }; $('#player').append(btn); }
+    else if (!seg) btn?.remove();
+  });
+  video.addEventListener('ended', () => {
+    savePosition(id, video.duration, video.duration);
+    const n = S.autoNext && !S.loop && videos(find(next, 'secondaryResults')).find(x => !x.short);
+    if (n) { fruitfox.storage.set('video', n).then(() => location.replace('watch.html?v=' + n.id)); }
+  });
+  if (S.sb) {
+    const cats = ['sponsor', 'selfpromo', 'interaction', 'intro', 'outro', 'preview', 'filler', 'music_offtopic'].filter(c => S['sb_' + c]);
+    if (cats.length) fruitfox.fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${id}&categories=${encodeURIComponent(JSON.stringify(cats))}`)
+      .then(r => { if (r.ok) segments = r.json(); }).catch(() => {});
+  }
+}
+
+async function info() {
+  const pri = find(next, 'videoPrimaryInfoRenderer')[0], sec = find(next, 'videoSecondaryInfoRenderer')[0], d = s?.details || {};
+  const owner = sec?.owner?.videoOwnerRenderer;
+  const title = text(pri?.title) || d.title || v.title || '';
+  const views = text(pri?.viewCount?.videoViewCountRenderer?.shortViewCount) || (d.viewCount ? fmt(+d.viewCount) + ' views' : '');
+  const date = text(pri?.relativeDateText) || text(pri?.dateText);
+  const ch = { id: owner?.navigationEndpoint?.browseEndpoint?.browseId || d.channelId, name: text(owner?.title) || d.author, avatar: big(owner?.thumbnail?.thumbnails) };
+  v = { ...v, title, channel: ch.name, channelId: ch.id, avatar: ch.avatar };
+  fruitfox.ui.title('');
+  const likes = find(find(pri, 'likeButtonViewModel'), 'title').find(t => typeof t === 'string' && /\d/.test(t)) || '';
+  const desc = d.shortDescription || text(sec?.attributedDescription) || '';
+  const subbed = (await localSubs()).some(c => c.id === ch.id);
+  liked = (await local('liked', [])).some(x => x.id === id);
+  $('#info').innerHTML = `<div class="wt">${esc(title)}</div>
+    <div class="ws tappable" id="more">${esc([views, date].filter(Boolean).join('  '))} <b>...more</b></div>
+    <div class="ch"><img alt="" class="av tappable" data-chan src="${esc(ch.avatar || '')}"><div class="tappable" data-chan><div class="n">${esc(ch.name)}</div><div class="s">${esc(text(owner?.subscriberCountText))}</div></div>
+      <button class="sub ${subbed ? 'on' : ''}" id="sub">${subbed ? 'Subscribed' : 'Subscribe'}</button></div>
+    <div class="acts"><span class="pill split"><button id="like" class="${liked ? 'on' : ''}">👍 ${esc(likes)}</button><button id="dislike">👎 <span id="dl"></span></button></span>
+      <button class="pill" id="share">↗ Share</button><button class="pill" id="save">＋ Save</button><button class="pill" id="speed">${S.speed}×</button>
+      <button class="pill" id="open">YouTube</button></div>
+    <div class="box ${S.expandDesc ? '' : 'hidden'}" id="descbox"><div class="desc">${linkify(desc)}</div></div>`;
+  if (S.ryd) fruitfox.fetch(`https://returnyoutubedislikeapi.com/votes?videoId=${id}`).then(r => { if (r.ok) $('#dl').textContent = fmt(r.json().dislikes); }).catch(() => {});
+  if (S.chapters) {
+    const ch2 = [...desc.matchAll(/^\s*\(?((?:\d+:)?\d{1,2}:\d{2})\)?\s*[-–—:]?\s*(.+)$/gm)].map(m => ({ t: secs(m[1]), name: m[2] }));
+    $('#chapters').innerHTML = ch2.length > 1 ? ch2.map(c => `<button data-t="${c.t}"><b>${hms(c.t)}</b>${esc(c.name)}</button>`).join('') : '';
+  }
+}
+const linkify = t => esc(t).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}">${u}</a>`).replace(/(^|\s)((?:\d+:)?\d{1,2}:\d{2})(?=\s)/g, (m, a, ts) => `${a}<a data-t="${secs(ts)}">${ts}</a>`);
+
+async function comments() {
+  const sec = find(next, 'itemSectionRenderer').find(x => x.sectionIdentifier === 'comment-item-section');
+  commentsToken = sec && find(sec, 'token')[0];
+  const count = text(find(next, 'commentsEntryPointHeaderRenderer')[0]?.commentCount) || '';
+  if (!commentsToken) return;
+  $('#cbox').innerHTML = `<div class="box tappable" id="cmts"><div class="h">Comments<span>${esc(count)}</span></div><div class="small secondary" id="cprev">…</div></div>`;
+  try {
+    const r = await api('next', { continuation: commentsToken });
+    const first = find(r, 'commentEntityPayload')[0];
+    if (first) $('#cprev').innerHTML = `<span style="display:flex;gap:8px;align-items:center"><img alt="" class="av" style="width:24px;height:24px" src="${esc(first.author?.avatarThumbnailUrl)}"><span class="ellipsis">${esc(first.properties?.content?.content)}</span></span>`;
+  } catch {}
+}
+
+document.body.addEventListener('click', async e => {
+  const t = e.target, video = $('#player video');
+  const ts = t.closest('[data-t]'); if (ts && video) { e.preventDefault(); video.currentTime = +ts.dataset.t; video.play(); return; }
+  const a = t.closest('.desc a[href]'); if (a) { e.preventDefault(); return fruitfox.ui.web(a.href); }
+  if (t.closest('#more')) return $('#descbox').classList.toggle('hidden');
+  if (t.closest('[data-chan]') && v.channelId) return fruitfox.ui.push('channel.html?id=' + v.channelId, v.channel);
+  if (t.closest('#cmts')) { await fruitfox.storage.set('comments', commentsToken); return fruitfox.ui.sheet('comments.html', 'Comments'); }
+  try {
+    if (t.closest('#sub')) { const b = $('#sub'), on = !b.classList.contains('on'); await subscribe({ id: v.channelId, name: v.channel, avatar: v.avatar }, on); b.classList.toggle('on', on); b.textContent = on ? 'Subscribed' : 'Subscribe'; return; }
+    if (t.closest('#like')) { liked = !liked; await like(id, liked); $('#like').classList.toggle('on', liked); return; }
+    if (t.closest('#dislike')) { disliked = !disliked; await like(id, disliked, true); $('#dislike').classList.toggle('on', disliked); return; }
+  } catch (err) { return fruitfox.ui.toast(err.message); }
+  if (t.closest('#share')) return fruitfox.ui.share(`https://youtu.be/${id}` + (video?.currentTime > 5 ? `?t=${Math.floor(video.currentTime)}` : ''));
+  if (t.closest('#save')) { await addToList('watchLater', v); return fruitfox.ui.toast('Saved to Watch Later'); }
+  if (t.closest('#open')) return fruitfox.ui.open(`https://www.youtube.com/watch?v=${id}`);
+  if (t.closest('#speed')) {
+    const pick = await fruitfox.ui.menu(['0.5', '0.75', '1', '1.25', '1.5', '1.75', '2', '2.5', '3'].map(x => ({ id: x, title: x === '1' ? 'Normal' : x + '×' })), 'Speed');
+    if (pick && video) { video.playbackRate = +pick; $('#speed').textContent = pick + '×'; }
+  }
+});
+wireVideos($('#list'));
+fruitfox.ui.buttons([{ id: 'search', symbol: 'magnifyingglass', title: 'Search' }, { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+load();
+</script>

@@ -22,5 +22,13 @@
     "version": "1",
     "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/reddit.zip",
     "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/reddit/icon.png"
+  },
+  {
+    "id": "youtube",
+    "name": "YouTube",
+    "summary": "Home, Subscriptions, Shorts, channels, search with filters, comments and chapters; subscriptions, history and Watch Later without an account; SponsorBlock, dislikes and DeArrow; filters and switches for everything.",
+    "version": "1",
+    "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/youtube.zip",
+    "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/youtube/icon.png"
   }
 ]

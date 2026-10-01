@@ -1,0 +1,45 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="yt.css"><script src="yt.js"></script>
+<div class="sbar"><input class="sbox" id="q" type="search" placeholder="Search YouTube" autocomplete="off" enterkeyhint="search"></div>
+<div class="list sugg" id="sugg"></div>
+<div class="chips" id="filters" style="top:52px"></div>
+<main id="list"></main>
+<script>
+// Search, with YouTube's own suggestions and filters (upload date, type, length, sort).
+let token, q = '', params = '', timer;
+async function suggest() {
+  const t = $('#q').value.trim();
+  if (!t || t === q) { $('#sugg').innerHTML = ''; return; }
+  try {
+    const r = await fruitfox.fetch(`https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&ds=yt&hl=en&q=${encodeURIComponent(t)}`);
+    const list = JSON.parse(r.body.slice(r.body.indexOf('(') + 1, r.body.lastIndexOf(')')))[1].map(x => x[0]).slice(0, 8);
+    $('#sugg').innerHTML = list.map(s => `<div class="cell tappable" data-s="${esc(s)}"><span class="secondary">⌕</span><span class="grow">${esc(s)}</span></div>`).join('');
+  } catch { $('#sugg').innerHTML = ''; }
+}
+async function run(next) {
+  clearTimeout(timer); $('#sugg').innerHTML = '';
+  if (!next) $('#list').innerHTML = '<div class="spinner"></div>';
+  try {
+    const r = next ? await api('search', { continuation: token }) : await api('search', { query: q, ...(params ? { params } : {}) });
+    token = nextToken(r);
+    if (!next) {
+      const groups = find(r, 'searchFilterGroupRenderer');
+      const fs = find(r, 'searchFilterRenderer').map(f => ({ name: text(f.label), p: f.navigationEndpoint?.searchEndpoint?.params, on: f.status === 'FILTER_STATUS_SELECTED' })).filter(f => f.p || f.on);
+      const chips2 = find(r, 'chipViewModel').map(c => ({ name: c.text, p: find(c, 'searchEndpoint')[0]?.params, on: c.selected })).filter(c => c.name && c.p);
+      $('#filters').innerHTML = [...chips2, ...fs].map(f => `<span class="chip tappable ${f.on ? 'on' : ''}" data-p="${esc(f.p || '')}">${esc(f.name)}</span>`).join('');
+      const chs = channels(r);
+      const chHTML = chs.slice(0, 3).map(c => `<div class="cell row tappable" data-chan="${esc(c.id)}" data-name="${esc(c.name)}"><img alt="" class="av" style="width:56px;height:56px" src="${esc(c.avatar)}">
+        <div class="grow"><div class="headline">${esc(c.name)}</div><div class="small secondary">${esc([c.handle, c.subs].filter(Boolean).join(' · '))}</div></div></div>`).join('');
+      await show($('#list'), videos(r));
+      $('#list').insertAdjacentHTML('afterbegin', chHTML);
+    } else await show($('#list'), videos(r), { append: true });
+  } catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+$('#q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(suggest, 200); });
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && $('#q').value.trim()) { q = $('#q').value.trim(); params = ''; $('#q').blur(); run(); } });
+$('#sugg').addEventListener('click', e => { const s = e.target.closest('[data-s]'); if (!s) return; $('#q').value = q = s.dataset.s; params = ''; $('#q').blur(); run(); });
+$('#filters').addEventListener('click', e => { const f = e.target.closest('[data-p]'); if (!f) return; params = f.dataset.p; haptic('select'); run(); });
+$('#list').addEventListener('click', e => { const c = e.target.closest('[data-chan]'); if (c) fruitfox.ui.push('channel.html?id=' + c.dataset.chan, c.dataset.name); });
+wireVideos($('#list'));
+onNearEnd(() => token && run(true));
+settings().then(() => $('#q').focus());
+</script>

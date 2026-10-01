@@ -1,0 +1,31 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="yt.css"><script src="yt.js"></script>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// A video's comments, then more as you scroll; tap Replies to see a thread.
+let token;
+function render(r) {
+  const threads = Object.fromEntries(find(r, 'commentThreadRenderer').map(t => [find(t, 'commentId')[0] || find(t.commentViewModel, 'commentKey')[0], find(t.replies, 'token')[0]]));
+  return find(r, 'commentEntityPayload').map(c => {
+    const p = c.properties || {}, a = c.author || {}, tb = c.toolbar || {}, rt = threads[p.commentId];
+    return `<div class="cmt" style="${p.replyLevel ? 'padding-left:50px' : ''}"><img alt="" class="av" src="${esc(a.avatarThumbnailUrl)}"><div class="grow">
+      <div class="by"><b>${esc(a.displayName)}</b> · ${esc(p.publishedTime)}</div><div class="tx">${esc(p.content?.content)}</div>
+      <div class="tb"><span>👍 ${esc(tb.likeCountNotliked || '')}</span>${rt && tb.replyCount ? `<span class="rep tappable" data-r="${esc(rt)}">${esc(tb.replyCount)} replies</span>` : ''}</div></div></div>`;
+  }).join('');
+}
+async function load() {
+  await settings();
+  token = await local('comments');
+  try {
+    const r = await api('next', { continuation: token });
+    token = nextToken(r);
+    $('#list').innerHTML = render(r) || '<div class="center secondary">No comments.</div>';
+  } catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+$('#list').addEventListener('click', async e => {
+  const r = e.target.closest('[data-r]'); if (!r) return;
+  r.textContent = 'Loading…';
+  try { const res = await api('next', { continuation: r.dataset.r }); r.closest('.cmt').insertAdjacentHTML('afterend', render(res)); r.remove(); } catch (err) { r.textContent = err.message; }
+});
+onNearEnd(async () => { if (!token) return; const r = await api('next', { continuation: token }); token = nextToken(r); $('#list').insertAdjacentHTML('beforeend', render(r)); });
+load();
+</script>

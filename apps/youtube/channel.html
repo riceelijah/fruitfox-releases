@@ -1,0 +1,61 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="yt.css"><script src="yt.js"></script>
+<div id="head"></div>
+<div class="chips" id="tabs"></div>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// A channel: banner, picture, subscribers, Subscribe, and its tabs (Videos, Shorts, Live, Playlists, …).
+const id = fruitfox.params.id;
+let token, chan;
+async function load(params) {
+  await settings();
+  try {
+    const r = await api('browse', { browseId: id, ...(params ? { params } : {}) });
+    if (!params) {
+      const h = find(r, 'pageHeaderViewModel')[0], c4 = find(r, 'c4TabbedHeaderRenderer')[0], meta = find(r, 'channelMetadataRenderer')[0];
+      const name = text(h?.title?.dynamicTextViewModel?.text) || meta?.title || text(c4?.title);
+      const avatar = find(h?.image, 'sources')[0]?.at(-1)?.url || big(meta?.avatar?.thumbnails);
+      const banner = find(h?.banner, 'sources')[0]?.at(-1)?.url || big(c4?.banner?.thumbnails);
+      const rows = find(h?.metadata, 'metadataParts').flat().map(p => text(p.text)).filter(Boolean);
+      chan = { id, name, avatar };
+      const subbed = (await localSubs()).some(c => c.id === id);
+      $('#head').innerHTML = `${banner ? `<div class="banner" style="background-image:url('${esc(banner)}')"></div>` : ''}
+        <div class="chead"><img alt="" class="big" src="${esc(avatar || '')}"><div class="grow"><div class="t">${esc(name)}</div>
+          <div class="small secondary">${esc(rows.join(' · '))}</div></div></div>
+        <div style="padding:0 12px 12px"><button class="sub ${subbed ? 'on' : ''}" id="sub" style="width:100%">${subbed ? 'Subscribed' : 'Subscribe'}</button></div>
+        ${meta?.description ? `<div class="box"><div class="desc clamp" id="about">${esc(meta.description)}</div></div>` : ''}`;
+      fruitfox.ui.title(name);
+      const tabs = find(r, 'tabRenderer').filter(t => t.title && t.endpoint?.browseEndpoint?.params);
+      $('#tabs').innerHTML = tabs.map(t => `<span class="chip tappable ${t.selected ? 'on' : ''}" data-p="${esc(t.endpoint.browseEndpoint.params)}">${esc(t.title)}</span>`).join('');
+      const vt = tabs.find(t => /Videos/i.test(t.title));
+      if (vt && !tabs.find(t => t.selected && /Videos/i.test(t.title))) return load(vt.endpoint.browseEndpoint.params);
+    }
+    token = nextToken(r);
+    const vs = videos(r);
+    const pls = find(r, 'lockupViewModel').filter(l => /PLAYLIST/.test(l.contentType || ''));
+    if (!vs.length && pls.length) {
+      $('#list').innerHTML = '<div class="list">' + pls.map(l => `<div class="cell row tappable" data-pl="${esc(l.contentId)}"><img alt="" style="width:120px;aspect-ratio:16/9;border-radius:8px;object-fit:cover" src="${esc(find(l.contentImage, 'sources')[0]?.at(-1)?.url || '')}">
+        <div class="grow"><div class="headline">${esc(text(l.metadata?.lockupMetadataViewModel?.title))}</div></div></div>`).join('') + '</div>';
+      return;
+    }
+    const shorts = vs.filter(v => v.short);
+    if (shorts.length === vs.length && shorts.length) {
+      $('#list').innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px">' + shorts.map(v => `<div class="short tappable" style="width:auto" data-short="${esc(v.id)}"><div class="st" style="border-radius:0"><img alt="" src="${esc(v.thumb)}"><div class="sc">${esc(v.views)}</div></div></div>`).join('') + '</div>';
+      shorts.forEach(v => known.set(v.id, v));
+      return;
+    }
+    vs.forEach(v => { v.channel ||= chan?.name; v.channelId ||= id; v.avatar ||= chan?.avatar; });
+    await show($('#list'), vs);
+  } catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+$('#head').addEventListener('click', async e => {
+  if (e.target.id === 'sub') { const on = !e.target.classList.contains('on'); try { await subscribe(chan, on); e.target.classList.toggle('on', on); e.target.textContent = on ? 'Subscribed' : 'Subscribe'; } catch (err) { fruitfox.ui.toast(err.message); } }
+  if (e.target.id === 'about') e.target.classList.toggle('clamp');
+});
+$('#tabs').addEventListener('click', e => { const t = e.target.closest('[data-p]'); if (!t) return; document.querySelectorAll('#tabs .chip').forEach(c => c.classList.toggle('on', c === t)); haptic('select'); $('#list').innerHTML = '<div class="spinner"></div>'; load(t.dataset.p); });
+$('#list').addEventListener('click', e => { const p = e.target.closest('[data-pl]'); if (p) fruitfox.ui.push('playlist.html?id=' + p.dataset.pl, 'Playlist'); });
+wireVideos($('#list'));
+onNearEnd(async () => { if (!token) return; const r = await api('browse', { continuation: token }); token = nextToken(r); const vs = videos(r); vs.forEach(v => { v.channel ||= chan?.name; v.avatar ||= chan?.avatar; }); await show($('#list'), vs, { append: true }); });
+fruitfox.ui.buttons(BUTTONS);
+fruitfox.on('refresh', () => load());
+load();
+</script>

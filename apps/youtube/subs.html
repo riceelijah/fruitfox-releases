@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="yt.css"><script src="yt.js"></script>
+<div class="shelf" id="chans" style="padding-top:10px"></div>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// Subscriptions: the newest from channels you subscribe to (your account's, or the ones on this phone).
+let token;
+async function load() {
+  await settings();
+  try {
+    const subs = await localSubs();
+    $('#chans').innerHTML = subs.map(c => `<div class="tappable" style="flex:none;width:64px;text-align:center" data-chan="${esc(c.id)}" data-name="${esc(c.name)}">
+      <img alt="" class="av" style="width:56px;height:56px" src="${esc(c.avatar || '')}"><div class="caption ellipsis">${esc(c.name)}</div></div>`).join('');
+    if (await account()) {
+      const r = await api('browse', { browseId: 'FEsubscriptions' });
+      token = nextToken(r);
+      const vs = videos(r);
+      if (vs.length) return show($('#list'), vs);
+    }
+    const vs = await localFeed();
+    if (vs.length) return show($('#list'), vs);
+    $('#list').innerHTML = '<div class="center"><div class="headline">No subscriptions yet</div><div class="secondary">Subscribe to channels from a video or a search. They’re kept on this phone, no account needed.</div></div>';
+  } catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+$('#chans').addEventListener('click', e => { const c = e.target.closest('[data-chan]'); if (c) fruitfox.ui.push('channel.html?id=' + c.dataset.chan, c.dataset.name); });
+wireVideos($('#list'));
+onNearEnd(async () => { if (!token) return; const r = await api('browse', { continuation: token }); token = nextToken(r); await show($('#list'), videos(r), { append: true }); });
+fruitfox.ui.buttons(BUTTONS);
+fruitfox.on('refresh', load);
+load();
+</script>
