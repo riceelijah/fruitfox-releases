@@ -38,5 +38,13 @@
     "version": "1",
     "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/bluesky.zip",
     "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/bluesky/icon.png"
+  },
+  {
+    "id": "threads",
+    "name": "Threads",
+    "summary": "Profiles, threads and replies, people search, and a Home feed from people you follow in the app, without an account; filters and switches.",
+    "version": "1",
+    "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/threads.zip",
+    "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/threads/icon.png"
   }
 ]

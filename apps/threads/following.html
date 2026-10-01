@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="th.css"><script src="th.js"></script>
+<main id="list"></main>
+<script>
+// People you follow in this app, and Settings.
+async function load() {
+  await settings();
+  const fs = await follows();
+  $('#list').innerHTML = (fs.map(u => userRow(u, true)).join('') || '<div class="center secondary">You’re not following anyone here yet. Find people in Search.</div>')
+    + '<div class="pad"><button class="btn" id="settings">Settings</button><button class="btn" id="site">Open threads.com (signed in)</button></div>';
+}
+$('#list').addEventListener('click', async e => {
+  if (e.target.id === 'settings') return openSettings();
+  if (e.target.id === 'site') return fruitfox.ui.web(TH + '/');
+  const f = e.target.closest('[data-follow]');
+  if (f) { e.stopPropagation(); await setFollow({ pk: f.dataset.follow }, false); return load(); }
+  const r = e.target.closest('[data-user]'); if (r) fruitfox.ui.push('profile.html?u=' + encodeURIComponent(r.dataset.user), '@' + r.dataset.user);
+});
+fruitfox.on('refresh', load);
+addEventListener('pageshow', load);
+load();
+</script>

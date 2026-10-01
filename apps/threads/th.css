@@ -1,0 +1,35 @@
+/* Threads' iOS app on the kit: black-and-white, avatar with a thread line, username · time, carousels, icon row. */
+.t { display: flex; gap: 12px; padding: 12px 16px 4px; }
+.t + .t:not(.chain) { border-top: .5px solid var(--sep); }
+.t .l { display: flex; flex-direction: column; align-items: center; flex: none; }
+.t .av { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: var(--fill); }
+.t .line { width: 2px; flex: 1; background: var(--sep); margin: 6px 0 -4px; border-radius: 1px; }
+.t .body { flex: 1; min-width: 0; padding-bottom: 8px; }
+.t .by { display: flex; align-items: center; gap: 4px; font: -apple-system-subheadline; }
+.t .by b { font-weight: 600; } .t .by .ago { color: var(--fg2); margin-left: 4px; } .t .by .more { margin-left: auto; color: var(--fg); }
+.t .tx { font: -apple-system-subheadline; font-size: 15px; line-height: 1.38; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+.t .tx a { color: #0095f6; }
+.media { display: flex; gap: 6px; overflow-x: auto; margin: 8px -16px 0 0; padding-right: 16px; scrollbar-width: none; scroll-snap-type: x mandatory; }
+.media img, .media video { height: 260px; max-width: 86%; border-radius: 8px; object-fit: cover; flex: none; background: var(--fill); scroll-snap-align: start; }
+.media.one img, .media.one video { height: auto; max-height: 440px; max-width: 100%; width: auto; }
+.quote { margin-top: 8px; border: .5px solid var(--sep); border-radius: 12px; padding: 10px 12px; }
+.icons { display: flex; gap: 18px; margin-top: 8px; color: var(--fg); font: -apple-system-footnote; }
+.icons span { display: inline-flex; align-items: center; gap: 5px; }
+.icons svg { width: 20px; height: 20px; }
+.repost-ctx { padding: 10px 16px 0 64px; font: -apple-system-footnote; color: var(--fg2); }
+.prof { padding: 16px; }
+.prof .row1 { display: flex; justify-content: space-between; align-items: center; }
+.prof .n { font: -apple-system-title2; font-weight: 700; } .prof .u { font: -apple-system-subheadline; }
+.prof img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--fill); }
+.prof .bio { margin: 10px 0; white-space: pre-wrap; font: -apple-system-subheadline; } .prof .f { color: var(--fg2); font: -apple-system-subheadline; }
+.btn { display: block; width: 100%; margin-top: 12px; border: .5px solid var(--sep); border-radius: 10px; padding: 9px; background: var(--bg); color: var(--fg); font: -apple-system-subheadline; font-weight: 600; }
+.btn.dark { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.urow { display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: .5px solid var(--sep); }
+.urow img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--fill); }
+.urow .grow b { display: block; font: -apple-system-subheadline; font-weight: 600; } .urow .grow span { font: -apple-system-footnote; color: var(--fg2); }
+.urow button { border: .5px solid var(--sep); border-radius: 10px; padding: 6px 16px; background: var(--bg); color: var(--fg); font: -apple-system-footnote; font-weight: 600; }
+.urow button.dark { background: var(--fg); color: var(--bg); }
+.sbar { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 8px 16px; }
+.sbox { width: 100%; box-sizing: border-box; border: 0; border-radius: 12px; padding: 10px 14px; font: -apple-system-body; background: var(--fill); color: var(--fg); }
+.verified { color: #0095f6; font-size: 13px; }
+.blur img, .blur video { filter: blur(24px); }

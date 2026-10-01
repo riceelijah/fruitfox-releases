@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="th.css"><script src="th.js"></script>
+<div class="sbar"><input class="sbox" id="q" type="search" placeholder="Search" autocomplete="off" autocapitalize="off" enterkeyhint="search"></div>
+<main id="list"></main>
+<script>
+// Search people (Threads only searches posts when you're signed in on threads.com).
+let timer;
+async function run() {
+  const q = $('#q').value.trim(); if (!q) { $('#list').innerHTML = ''; return; }
+  try {
+    const d = await gql('people', { query: q, first: 20, should_fetch_ig_inactive_on_text_app: null, should_fetch_friendship_status: false, should_fetch_fediverse_profiles: false,
+      should_fetch_mention_restriction: false, hide_unconnected_private: false, is_internal_user: false });
+    if ($('#q').value.trim() !== q) return;
+    const fs = new Set((await follows()).map(f => f.pk));
+    $('#list').innerHTML = people(d).map(u => userRow(u, fs.has(u.pk))).join('') + `<div class="cell tappable" id="posts" style="padding:14px 16px">Search posts for “${esc(q)}” on threads.com ›</div>`;
+    window.__found = people(d);
+  } catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+$('#q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 300); });
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') $('#q').blur(); });
+$('#list').addEventListener('click', async e => {
+  if (e.target.closest('#posts')) return fruitfox.ui.web(TH + '/search?q=' + encodeURIComponent($('#q').value.trim()) + '&serp_type=default');
+  const f = e.target.closest('[data-follow]');
+  if (f) { e.stopPropagation(); const u = window.__found.find(x => x.pk === f.dataset.follow); const on = f.textContent !== 'Following'; await setFollow(u, on); f.textContent = on ? 'Following' : 'Follow'; f.classList.toggle('dark', !on); return; }
+  const r = e.target.closest('[data-user]'); if (r) fruitfox.ui.push('profile.html?u=' + encodeURIComponent(r.dataset.user), '@' + r.dataset.user);
+});
+settings();
+</script>

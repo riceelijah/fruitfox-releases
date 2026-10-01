@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="th.css"><script src="th.js"></script>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// A thread: the post (and the posts it continues) with its replies.
+const pk = fruitfox.params.pk;
+async function load() {
+  await settings();
+  const p = await fruitfox.storage.get('post');
+  try {
+    const [t, r] = await Promise.all([gql('target', { postID: pk }), gql('replies', { postID: pk, sortOrder: 'TOP' })]);
+    const main = threadsOf(t)[0] || [p];
+    const replies = [...repliesOf(r), ...threadsOf(r)].map(c => c.filter(x => x.pk !== pk)).filter(c => c.length);
+    $('#list').innerHTML = threadHTML(main) + '<div class="pad small secondary" style="border-top:.5px solid var(--sep)">Replies</div>' + (replies.map(threadHTML).join('') || '<div class="center secondary">No replies yet.</div>');
+  } catch (e) { $('#list').innerHTML = (p?.pk ? threadHTML([p]) : '') + errorHTML(e); }
+}
+wirePosts($('#list'));
+fruitfox.ui.buttons([{ id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+fruitfox.on('refresh', load);
+load();
+</script>

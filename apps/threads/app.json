@@ -1,0 +1,11 @@
+{
+  "name": "Threads",
+  "version": "1",
+  "icon": "icon.png",
+  "sites": ["threads.com", "threads.net", "cdninstagram.com", "fbcdn.net"],
+  "tabs": [
+    { "title": "Home", "symbol": "house", "page": "home.html" },
+    { "title": "Search", "symbol": "magnifyingglass", "page": "search.html" },
+    { "title": "Following", "symbol": "person.2", "page": "following.html" }
+  ]
+}

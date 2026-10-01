@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="th.css"><script src="th.js"></script>
+<main id="page"><div class="spinner"></div></main>
+<script>
+// A profile and its threads, with Follow (kept on this phone).
+const username = fruitfox.params.u;
+let user, next;
+async function load() {
+  await settings();
+  try {
+    user = await userId(username);
+    if (!user) throw new Error('No one on Threads goes by @' + username);
+    const d = await gql('profile', { canSeeFeedsTab: true, showLinkedIGStats: false, userID: user.pk });
+    const full = findUsers(d).find(u => u.pk === user.pk) || user;
+    const followed = (await follows()).some(f => f.pk === user.pk);
+    const r = await userPosts(user.pk); next = r.next;
+    $('#page').innerHTML = `<div class="prof"><div class="row1"><div><div class="n">${esc(full.full_name || full.username)}</div><div class="u">${esc(full.username)}</div></div><img alt="" src="${esc(fruitfox.media(full.profile_pic_url))}"></div>
+      ${full.biography ? `<div class="bio">${linkify(full.biography)}</div>` : ''}<div class="f">${full.follower_count != null ? num(full.follower_count) + ' followers' : ''}</div>
+      <button class="btn ${followed ? '' : 'dark'}" id="follow">${followed ? 'Following' : 'Follow'}</button></div>
+      <div id="list">${r.threads.map(threadHTML).join('')}</div>`;
+  } catch (e) { $('#page').innerHTML = errorHTML(e); }
+}
+$('#page').addEventListener('click', async e => {
+  if (e.target.id !== 'follow') return;
+  const on = !(await follows()).some(f => f.pk === user.pk);
+  await setFollow(user, on); e.target.textContent = on ? 'Following' : 'Follow'; e.target.classList.toggle('dark', !on);
+});
+wirePosts($('#page'));
+onNearEnd(async () => { if (!next) return; const r = await userPosts(user.pk, next); next = r.next; $('#list').insertAdjacentHTML('beforeend', r.threads.map(threadHTML).join('')); });
+fruitfox.ui.buttons([{ id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+fruitfox.on('refresh', load);
+load();
+</script>
