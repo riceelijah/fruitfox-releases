@@ -1,6 +1,6 @@
 {
   "name": "Instagram",
-  "version": "6",
+  "version": "7",
   "icon": "icon.png",
   "sites": [
     "instagram.com",
@@ -14,14 +14,14 @@
       "page": "feed.html"
     },
     {
-      "title": "Search",
-      "symbol": "magnifyingglass",
-      "page": "search.html"
-    },
-    {
       "title": "Messages",
       "symbol": "paperplane",
       "page": "inbox.html"
+    },
+    {
+      "title": "Search",
+      "symbol": "magnifyingglass",
+      "page": "search.html"
     },
     {
       "title": "Profile",

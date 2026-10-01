@@ -1,0 +1,80 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
+<style>
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 8px; padding: 8px 16px 120px; }
+  .who { text-align: center; position: relative; } .who img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--fill); }
+  .who .n { font: -apple-system-caption1; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .who .tick { position: absolute; top: 50px; left: calc(50% + 20px); width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff;
+    font-size: 13px; line-height: 22px; border: 2px solid var(--bg); display: none; } .who.on .tick { display: block; }
+  .bottom { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--bg); border-top: .5px solid var(--sep); }
+  .bottom input { width: 100%; box-sizing: border-box; border: 0; padding: 10px 0; font: -apple-system-body; background: none; color: var(--fg); outline: none; }
+  .bottom .button { width: 100%; padding: 12px; border-radius: 10px; }
+  .actions { display: flex; gap: 22px; overflow-x: auto; padding: 12px 16px; } .actions button { border: 0; background: none; color: var(--fg); font: -apple-system-caption1; display: grid; justify-items: center; gap: 6px; }
+  .actions span { width: 52px; height: 52px; border-radius: 50%; background: var(--fill); display: grid; place-items: center; font-size: 22px; }
+</style>
+<div class="sbar"><input class="sbox" id="q" type="search" placeholder="Search" autocomplete="off"></div>
+<div class="grid3" id="people"><div class="spinner"></div></div>
+<div class="bottom" id="bottom" hidden><input id="msg" placeholder="Write a message…"><button class="button" id="send">Send</button></div>
+<div class="actions" id="actions" style="position:fixed;bottom:env(safe-area-inset-bottom);left:0;right:0;background:var(--bg);border-top:.5px solid var(--sep)">
+  <button data-a="copy"><span>🔗</span>Copy link</button><button data-a="share"><span>↗︎</span>Share to…</button><button data-a="web"><span>◎</span>Instagram</button></div>
+<script>
+// Send to: your recent conversations (and people you search for); pick one or more, add a message, Send.
+let item, threads = [], picked = new Map();
+const key = t => t.thread_id ? 't:' + t.thread_id : 'u:' + t.pk;
+function render(list) {
+  $('#people').innerHTML = list.map(t => `<div class="who tappable ${picked.has(key(t)) ? 'on' : ''}" data-k="${esc(key(t))}"><img alt="" src="${esc(t.pic)}"><span class="tick">✓</span><div class="n">${esc(t.name)}</div></div>`).join('')
+    || '<div class="secondary" style="grid-column:1/-1;text-align:center">No one found</div>';
+  $('#bottom').hidden = !picked.size; $('#actions').style.display = picked.size ? 'none' : 'flex';
+  $('#send').textContent = picked.size > 1 ? `Send separately` : 'Send';
+}
+(async () => {
+  item = await fruitfox.storage.get('send');
+  try {
+    const box = await ig.inbox();
+    threads = (box?.threads_by_folder?.edges || []).map(e => e.node.as_ig_direct_thread).filter(Boolean).map(t => {
+      const others = (t.users || []).filter(u => u.id !== t.viewer_id);
+      return { thread_id: t.thread_id || t.thread_v2_id || t.id, pk: others[0]?.id, name: t.thread_title || others.map(u => u.username).join(', '), pic: pic(others[0]) };
+    }).slice(0, 30);
+    render(threads);
+  } catch (e) { $('#people').innerHTML = `<div class="secondary" style="grid-column:1/-1;text-align:center">${esc(e.message)}</div>`; }
+})();
+let timer;
+$('#q').oninput = () => {
+  clearTimeout(timer);
+  const q = $('#q').value.trim().toLowerCase();
+  if (!q) return render(threads);
+  render(threads.filter(t => t.name.toLowerCase().includes(q)));
+  timer = setTimeout(async () => {
+    try {
+      const r = await ig.search(q);
+      const people = (r.users || []).map(x => x.user).map(u => ({ pk: u.pk, name: u.username, pic: pic(u) }));
+      render([...threads.filter(t => t.name.toLowerCase().includes(q)), ...people.filter(p => !threads.some(t => t.pk === p.pk))]);
+    } catch {}
+  }, 350);
+};
+$('#people').addEventListener('click', e => {
+  const w = e.target.closest('[data-k]'); if (!w) return;
+  const k = w.dataset.k, t = [...threads].find(x => key(x) === k) || { pk: k.slice(2), name: w.querySelector('.n').textContent, pic: w.querySelector('img').src };
+  picked.has(k) ? picked.delete(k) : picked.set(k, t);
+  fruitfox.ui.haptic('select'); w.classList.toggle('on'); render([...document.querySelectorAll('#people [data-k]')].map(x => [...threads].find(y => key(y) === x.dataset.k) || picked.get(x.dataset.k) || { pk: x.dataset.k.slice(2), name: x.querySelector('.n').textContent, pic: x.querySelector('img').src }));
+});
+$('#send').onclick = async () => {
+  const ts = [...picked.values()];
+  $('#send').textContent = 'Sending…';
+  try {
+    await shareMedia(item, ts.filter(t => t.thread_id).map(t => String(t.thread_id)), ts.filter(t => !t.thread_id).map(t => String(t.pk)), $('#msg').value.trim());
+    fruitfox.ui.haptic('success'); fruitfox.ui.toast(`Sent to ${ts.map(t => t.name).join(', ')}`); fruitfox.ui.back();
+  } catch (e) {
+    // Instagram didn't take it here: the post opens on instagram.com, where its own Send works, with the link ready to paste.
+    fruitfox.log('send → ' + e.message);
+    await navigator.clipboard?.writeText(`${IG}/${item.reel ? 'reel' : 'p'}/${item.code}/`).catch(() => {});
+    fruitfox.ui.toast('Couldn’t send from here; opening it on Instagram (link copied)');
+    fruitfox.ui.web(`${IG}/${item.reel ? 'reel' : 'p'}/${item.code}/`);
+  }
+};
+$('#actions').addEventListener('click', async e => {
+  const a = e.target.closest('[data-a]')?.dataset.a, url = `${IG}/${item.reel ? 'reel' : 'p'}/${item.code}/`;
+  if (a === 'copy') { await navigator.clipboard?.writeText(url).catch(() => {}); fruitfox.ui.toast('Link copied'); }
+  if (a === 'share') fruitfox.ui.share(url);
+  if (a === 'web') fruitfox.ui.web(url);
+});
+</script>

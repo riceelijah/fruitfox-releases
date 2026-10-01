@@ -205,7 +205,7 @@ async function deviceId() {
 
 // MARK: Settings (settings.html)
 
-const defaults = { newestFirst: true, hideReels: true, hideSuggested: true, hideLikes: false, igColors: true, hideStories: false, readOnly: false, ghostStories: true, limit: 0 };
+const defaults = { nativeFeed: false, newestFirst: true, hideReels: true, hideSuggested: true, hideLikes: false, igColors: true, hideStories: false, readOnly: false, ghostStories: true, limit: 0 };
 async function settings() { return { ...defaults, ...(await fruitfox.storage.get('settings')) }; }
 
 /// Instagram Colors: Instagram's blue, red hearts and gradient story rings instead of your Fruitfox accent color.
@@ -385,7 +385,7 @@ function wirePosts(root, find, render) {
     }
     if (e.target.closest('.more-btn')) {
       const pick = await fruitfox.ui.menu([{ id: 'share', title: 'Share' }, { id: 'profile', title: 'Go to profile' }, { id: 'web', title: 'Open on Instagram' }], '');
-      if (pick === 'share') fruitfox.ui.share(`${IG}/p/${m.code}/`);
+      if (pick === 'share') sendTo(m);
       if (pick === 'profile') openLink({ target: post.querySelector('.pname') });
       if (pick === 'web') fruitfox.ui.open(`${IG}/p/${m.code}/`);
       return;
@@ -420,7 +420,7 @@ function wirePosts(root, find, render) {
       if (window.showComments) showComments(m);  // pages with their own comments panel (Reels)
       else fruitfox.ui.sheet(`comments.html?id=${m.pk}&owner=${m.user?.pk || ''}`, 'Comments');
     } else if (e.target.closest('.share')) {
-      fruitfox.ui.share(`${IG}/p/${m.code}/`);
+      sendTo(m);
     } else if (e.target.closest('.clamped')) {
       e.target.closest('.clamped').classList.remove('clamped');
     }
@@ -644,3 +644,48 @@ async function markSeen(reelId, takenAt) {
     paintMe();
   } catch { }
 })();
+
+// ---------- Sending a post or reel to friends (the paper plane): a sheet of your conversations, like Instagram's.
+async function sendTo(m) {
+  await fruitfox.storage.set('send', { pk: String(m.pk), id: String(m.id || m.pk), code: m.code, reel: !!(m.product_type === 'clips' || m.media_type === 2 && !m.carousel_media),
+    thumb: best(m.carousel_media?.[0] || m), user: m.user?.username });
+  fruitfox.ui.sheet('send.html', 'Send');
+}
+/// Instagram's own request for sharing a post into conversations (the app's; the website uses it too). Each recipient is
+/// a conversation's thread id, or a person's id for a new one.
+async function shareMedia(item, threadIds, userIds, text) {
+  const ctx = () => String(BigInt(Date.now()) * 1000000n + BigInt(Math.floor(Math.random() * 1e6)));
+  const form = { media_id: item.id, action: 'send_item', client_context: ctx(), mutation_token: ctx(), offline_threading_id: ctx(),
+    ...(threadIds.length ? { thread_ids: JSON.stringify(threadIds) } : {}), ...(userIds.length ? { recipient_users: JSON.stringify(userIds.map(u => [u])) } : {}) };
+  await api(`direct_v2/threads/broadcast/${item.reel ? 'clip_share' : 'media_share'}/?media_type=${item.reel ? 'video' : 'photo'}`, { method: 'POST', form });
+  if (text) await api('direct_v2/threads/broadcast/text/', { method: 'POST', form: { text, action: 'send_item', client_context: ctx(), mutation_token: ctx(),
+    ...(threadIds.length ? { thread_ids: JSON.stringify(threadIds) } : {}), ...(userIds.length ? { recipient_users: JSON.stringify(userIds.map(u => [u])) } : {}) } });
+}
+
+// ---------- The feed as a native screen (an experiment: Settings › Native Feed): Fruitfox draws the posts in SwiftUI.
+async function nativeFeed(items) {
+  const rows = items.filter(m => best(m.carousel_media?.[0] || m)).map(m => {
+    const media = m.carousel_media || [m];
+    return { id: String(m.pk), type: 'post', title: m.user?.username || '', subtitle: m.location?.name || '', avatar: m.user?.profile_pic_url,
+      images: media.map(x => best(x)).filter(Boolean), aspect: m.original_width && m.original_height ? Math.max(0.8, m.original_width / m.original_height) : 1,
+      footer: m.like_count && !SETTINGS_HIDE_LIKES ? `${m.like_count.toLocaleString()} likes` : '', text: m.caption?.text ? `${m.user?.username} ${m.caption.text}` : '',
+      liked: !!m.has_liked, saved: !!m.has_viewer_saved };
+  });
+  fruitfox.ui.push({ type: 'feed', title: 'Instagram', sections: [{ rows }] }, 'Instagram');
+}
+let SETTINGS_HIDE_LIKES = false;
+/// Taps on the native feed come back here as 'screen' events.
+function wireNativeFeed(find) {
+  fruitfox.on('screen', async j => {
+    const { id, action, value } = JSON.parse(j), m = find(id);
+    if (!m) return;
+    try {
+      if (action === 'like') { m.has_liked = value === 'true'; await ig.like(m.pk, m.has_liked); }
+      if (action === 'save') { m.has_viewer_saved = value === 'true'; await ig.save(m.pk, m.has_viewer_saved); fruitfox.ui.toast(m.has_viewer_saved ? 'Saved' : 'Removed from Saved'); }
+      if (action === 'comment') fruitfox.ui.sheet(`comments.html?id=${m.pk}&owner=${m.user?.pk || ''}`, 'Comments');
+      if (action === 'send') sendTo(m);
+      if (action === 'author') fruitfox.ui.push(`profile.html?username=${encodeURIComponent(m.user.username)}&id=${m.user.pk}`, m.user.username);
+      if (action === 'more') { await fruitfox.storage.set('post', m); fruitfox.ui.push('post.html?id=' + m.pk, 'Post'); }
+    } catch (e) { fruitfox.ui.toast(e.message); }
+  });
+}

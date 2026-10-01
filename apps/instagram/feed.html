@@ -31,6 +31,7 @@ async function tray() {
 async function load() {
   s = await settings();
   fruitfox.ui.buttons([
+    ...(s.nativeFeed ? [{ id: 'native', symbol: 'swift', title: 'Native Feed' }] : []),
     ...(s.hideReels ? [] : [{ id: 'reels', symbol: 'play.rectangle', title: 'Reels' }]),
     { id: 'activity', symbol: 'heart', title: 'Activity' },
     { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' },
@@ -50,12 +51,14 @@ $('#tray').addEventListener('click', e => {
   fruitfox.ui.cover(`story.html?ids=${all.map(x => x.dataset.reel).join(',')}&i=${all.indexOf(t)}`);
 });
 wirePosts($('#feed'), id => posts.get(id));
+wireNativeFeed(pk => [...posts.values()].find(m => String(m.pk) === pk));
 onNearEnd(async () => { if (next) $('#feed').insertAdjacentHTML('beforeend', await page(next)); });
 fruitfox.on('refresh', load);
 fruitfox.on('button', id => {
   if (id === 'settings') fruitfox.ui.sheet('settings.html', 'Settings');
   if (id === 'activity') fruitfox.ui.push('activity.html', 'Activity');
   if (id === 'reels') fruitfox.ui.cover('reels.html');
+  if (id === 'native') { SETTINGS_HIDE_LIKES = !!s.hideLikes; nativeFeed([...posts.values()]); }
 });
 load();
 openInitialURL();
