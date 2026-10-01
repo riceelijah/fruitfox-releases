@@ -5,9 +5,11 @@
     <option value="0">Off</option><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option>
     <option value="60">1 hour</option><option value="90">1½ hours</option><option value="120">2 hours</option></select></label></div>
 <p class="pad small secondary" id="used"></p>
+<p class="pad small secondary">Read-Only Mode turns off everything here that could notify someone: liking posts, comments and stories, commenting, following, and replying to messages or stories. You can still look at everything and save posts. It also keeps Ghost Story Views on.</p>
+<p class="pad small secondary">Ghost Story Views on: you watch stories without Instagram being told, so you don’t appear in anyone’s viewer list. Off: stories you watch are marked as seen, like in Instagram itself. The app remembers what you’ve watched either way.</p>
 <p class="pad small secondary">Instagram doesn’t offer apps like this one. This uses instagram.com’s own website API while you’re signed in, so Instagram can change it, and it may ask you to confirm it’s you if it sees unusual activity.</p>
 <script>
-const labels = { newestFirst: 'Newest First', hideSuggested: 'Hide Suggested Posts', hideReels: 'Hide Reels', hideLikes: 'Hide Like Counts', igColors: 'Instagram Colors' };
+const labels = { newestFirst: 'Newest First', hideSuggested: 'Hide Suggested Posts', hideReels: 'Hide Reels', hideLikes: 'Hide Like Counts', hideStories: 'Hide Stories', ghostStories: 'Ghost Story Views', readOnly: 'Read-Only Mode', igColors: 'Instagram Colors' };
 settings().then(async s => {
   $('#list').innerHTML = Object.entries(labels).map(([k, l]) => `<label class="cell row"><span class="grow">${l}</span><input type="checkbox" data-k="${k}" ${s[k] ? 'checked' : ''}></label>`).join('');
   $('#list').onchange = e => {

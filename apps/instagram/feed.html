@@ -18,9 +18,14 @@ async function page(maxId) {
 }
 
 async function tray() {
-  const r = await ig.tray();
-  $('#tray').innerHTML = (r.tray || []).filter(t => t.user).map(t => `<div class="tappable ${t.seen >= t.latest_reel_media ? 'seen' : ''}" data-reel="${esc(t.id)}">
-    <img alt="" class="avatar ring" src="${esc(pic(t.user))}"><div class="caption ellipsis">${esc(t.user.username)}</div></div>`).join('');
+  const r = await ig.tray(), mine = await me(), local = await seenStories();
+  const all = (r.tray || []).filter(t => t.user), own = all.find(t => String(t.user.pk) === String(mine));
+  const item = t => `<div class="tappable ${t.seen >= t.latest_reel_media || local[t.id] >= t.latest_reel_media ? 'seen' : ''}" data-reel="${esc(t.id)}">
+    <div class="sr"><img alt="" src="${esc(pic(t.user))}"></div><div class="caption ellipsis">${esc(t.user.username)}</div></div>`;
+  // Like Instagram, "Your story" comes first: your ring if you have a story up, otherwise your picture with a + badge.
+  const you = own ? item(own).replace(esc(own.user.username) + '</div>', 'Your story</div>')
+    : `<div class="tappable" data-you="1"><div class="sr none"><img alt="" class="me-avatar" src="${esc(myPic())}"><span class="plus">${icon('plus', false, 12)}</span></div><div class="caption ellipsis">Your story</div></div>`;
+  $('#tray').innerHTML = you + all.filter(t => t !== own).map(item).join('');
 }
 
 async function load() {
@@ -31,10 +36,12 @@ async function load() {
     { id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' },
   ]);
   const feed = $('#feed');
-  await guard(feed, async () => { tray().catch(() => {}); feed.innerHTML = await page(); });
+  $('#tray').hidden = !!s.hideStories;
+  await guard(feed, async () => { if (!s.hideStories) tray().catch(() => {}); feed.innerHTML = await page(); });
 }
 
 $('#tray').addEventListener('click', e => {
+  if (e.target.closest('[data-you]')) return fruitfox.ui.toast('Adding to your story isn’t supported in this app yet');
   const t = e.target.closest('[data-reel]');
   if (!t) return;
   // From this person on through the rest of the tray.

@@ -10,13 +10,20 @@ const row = st => {
     text = text.replace(esc(l.username), `<b data-user="${esc(l.username)}" data-uid="${esc(l.id)}">${esc(l.username)}</b>`);
   return `<div class="cell row"><img alt="" class="avatar" src="${esc(fruitfox.media(a.profile_image))}" data-user="${esc(u?.username || a.profile_name)}" data-uid="${esc(a.profile_id)}">
     <div class="grow small">${text} <span class="secondary">${a.timestamp ? ago(a.timestamp) : ''}</span></div>
-    ${m?.image ? `<img alt="" src="${esc(m.image)}" data-media="${esc(String(m.id).split('_')[0])}" style="width:44px;height:44px;object-fit:cover;border-radius:6px">` : ''}</div>`;
+    ${m?.image ? `<img alt="" src="${esc(m.image)}" data-media="${esc(String(m.id).split('_')[0])}" class="act-thumb">` : ''}</div>`;
 };
 guard($('#list'), async () => {
+  await settingsReady;
   const d = await ig.activity(), a = d.xdt_activity_inbox || {}, pending = d.xdt_api__v1__friendships__pending?.users || [];
+  // New, then Today, Yesterday, This week, This month and Earlier, like Instagram's Notifications.
+  const bucket = t => { const d = (Date.now() / 1000 - t) / 86400; return d < 1 ? 'Today' : d < 2 ? 'Yesterday' : d < 7 ? 'This week' : d < 30 ? 'This month' : 'Earlier'; };
+  const secs = [], groups = {};
+  if ((a.new_stories || []).length) secs.push(['New', a.new_stories]);
+  for (const st of a.old_stories || []) (groups[bucket(st.args?.timestamp)] ||= []).push(st);
+  for (const k of ['Today', 'Yesterday', 'This week', 'This month', 'Earlier']) if (groups[k]) secs.push([k, groups[k]]);
   $('#list').innerHTML =
-    (pending.length ? `<div class="cell row tappable" id="requests"><div class="grow headline">Follow Requests</div><span class="secondary">${pending.map(u => esc(u.username)).slice(0, 2).join(', ')}${pending.length > 2 ? ' + ' + (pending.length - 2) : ''}</span></div>` : '')
-    + [...(a.new_stories || []), ...(a.old_stories || [])].map(row).join('')
+    (pending.length && !RO ? `<div class="cell row tappable" id="requests"><div class="grow headline">Follow requests</div><span class="secondary">${pending.map(u => esc(u.username)).slice(0, 2).join(', ')}${pending.length > 2 ? ' + ' + (pending.length - 2) : ''}</span></div>` : '')
+    + secs.map(([k, l]) => `<div class="sect">${k}</div>` + l.map(row).join('')).join('')
     || '<div class="center secondary">No activity yet</div>';
 });
 $('#list').addEventListener('click', e => {

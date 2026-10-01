@@ -13,19 +13,26 @@
   #cta { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 76px); left: 50%; transform: translateX(-50%); z-index: 2; }
   #bar { position: fixed; left: 12px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 12px); z-index: 2; gap: 8px; }
   #reply { text-align: left; font: -apple-system-subheadline; color: #fff; background: none; border: 1px solid rgb(255 255 255 / .6); border-radius: 999px; padding: 11px 16px; }
-  #heart { color: #fff; } #heart.on { color: var(--like); } #heart svg { width: 30px; height: 30px; }
+  #heart, #sendto { color: #fff; border: 0; background: none; } #heart.on { color: var(--like); } #heart svg, #sendto svg { width: 28px; height: 28px; }
+  #x { position: fixed; top: calc(env(safe-area-inset-top) + 14px); right: 10px; z-index: 3; width: 40px; height: 40px; border: 0; background: none; color: #fff; display: grid; place-items: center; filter: drop-shadow(0 1px 3px #0008); }
+  #box { border-radius: 14px; overflow: hidden; }
+  #bars, #who, #bar, #x, #cta { transition: opacity .2s; }
+  body.held #bars, body.held #who, body.held #bar, body.held #x, body.held #cta { opacity: 0; }
+  #who { right: 56px; }
 </style>
+<button id="x" aria-label="Close"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
 <div id="bars"></div>
 <div id="who" class="row"></div>
 <div id="box"><div class="spinner"></div></div>
 <button id="cta" class="button" hidden>Open Link</button>
-<div id="bar" class="row"><button id="reply" class="grow">Send message</button><button id="heart" class="icon-button" aria-label="Like story"></button></div>
+<div id="bar" class="row"><button id="reply" class="grow">Send message</button><button id="heart" class="icon-button" aria-label="Like story"></button><button id="sendto" class="icon-button" aria-label="Send" data-reply="1"></button></div>
 <script>
 // Stories, full screen: tap right for next, left for back, hold to pause, swipe down to close. Carries on through the
 // next people's stories (?ids=a,b,c&i=0). Links, mentions and shared posts on a story can be tapped.
 // Stories you watch here aren't marked as seen.
 const ids = (fruitfox.params.ids || fruitfox.params.id).split(','), box = $('#box');
 let myId; me().then(x => myId = x);
+$('#sendto').innerHTML = icon('send');
 const heart = () => { const on = !!items[i]?.has_liked; $('#heart').classList.toggle('on', on); $('#heart').innerHTML = icon('heart', on); };
 let reel = parseInt(fruitfox.params.i || '0'), items = [], i = 0, bar, owner;
 
@@ -56,16 +63,24 @@ async function loadReel(k, fromEnd) {
   show(fromEnd ? items.length - 1 : 0);
 }
 
+// With Ghost Story Views off, each story you watch is also marked seen on Instagram (once per story; never your own).
+const reported = new Set();
+function reportSeen(it) {
+  if (GHOST || !owner || String(owner.pk) === String(myId) || reported.has(it.pk)) return;
+  reported.add(it.pk);
+  ig.seenStory(it, owner.pk, ids[reel]).catch(err => { reported.delete(it.pk); if (!reportSeen.warned) { reportSeen.warned = 1; fruitfox.ui.toast('Couldn’t mark this story as seen: ' + err.message); } });
+}
 function show(n) {
   if (n >= items.length) return loadReel(reel + 1);
   if (n < 0) return reel > 0 ? loadReel(reel - 1, true) : show(0);
   i = n; bar?.cancel();
-  const it = items[i], bars = document.querySelectorAll('#bars i');
+  const it = items[i]; markSeen(ids[reel], it.taken_at); reportSeen(it);
+  const bars = document.querySelectorAll('#bars i');
   bars.forEach((b, j) => b.style.width = j < i ? '100%' : '0');
   $('#when').textContent = ' · ' + ago(it.taken_at);
   box.innerHTML = (it.video_versions ? `<video playsinline autoplay src="${esc(it.video_versions[0].url)}"></video>` : `<img alt="" src="${esc(best(it))}">`) + stickers(it);
   heart();
-  $('#bar').hidden = !owner || String(owner.pk) === String(myId);
+  $('#bar').hidden = !owner || String(owner.pk) === String(myId) || RO;
   const cta = it.story_cta?.[0]?.links?.[0]?.webUri;
   $('#cta').hidden = !cta; $('#cta').dataset.link = cta ? unwrap(cta) : '';
   bar = bars[i].animate([{ width: '0%' }, { width: '100%' }], { duration: (it.video_duration || 5) * 1000, fill: 'forwards' });
@@ -74,7 +89,7 @@ function show(n) {
 
 // Taps, holds and the swipe down, with pointer events (iOS doesn't send clicks from plain elements).
 let down, held, holdTimer;
-const pause = on => { const v = box.querySelector('video'); if (on) { bar?.pause(); v?.pause(); } else { bar?.play(); v?.play(); } };
+const pause = on => { const v = box.querySelector('video'); document.body.classList.toggle('held', on); if (on) { bar?.pause(); v?.pause(); } else { bar?.play(); v?.play(); } };
 addEventListener('pointerdown', e => { down = e; held = false; holdTimer = setTimeout(() => { held = true; pause(true); }, 220); });
 addEventListener('pointermove', e => {
   if (!down) return;
@@ -89,10 +104,14 @@ addEventListener('pointerup', e => {
   if (dy > 120) return fruitfox.ui.back();
   if (held) return pause(false);
   if (target.closest('#heart')) {
-    const it = items[i], on = !it.has_liked; it.has_liked = on; heart(); fruitfox.ui.haptic(on ? 'success' : 'light');
+    const it = items[i], on = !it.has_liked;
+    if (on && RO) return fruitfox.ui.toast(roMsg('Liking'));
+    it.has_liked = on; heart(); fruitfox.ui.haptic(on ? 'success' : 'light');
     return ig.likeStory(it.pk, on).catch(err => { it.has_liked = !on; heart(); fruitfox.ui.toast(err.message); });
   }
-  if (target.closest('#reply')) {
+  if (target.closest('#x')) return fruitfox.ui.back();
+  if ((target.closest('#reply') || target.closest('#sendto')) && RO) return fruitfox.ui.toast(roMsg('Replying'));
+  if (target.closest('#reply') || target.closest('#sendto')) {
     // Replies are messages, which Instagram sends over a connection an app page can't open: reply on the story's page.
     pause(true);
     return fruitfox.ui.web(`${IG}/stories/${owner.username}/${items[i].pk}/`).then(() => pause(false));
@@ -104,5 +123,5 @@ addEventListener('pointerup', e => {
   fruitfox.ui.haptic('select');
   show(e.clientX > innerWidth / 3 ? i + 1 : i - 1);
 });
-guard(box, () => loadReel(reel));
+guard(box, async () => { await settingsReady; if (NOSTORIES) return fruitfox.ui.back(); await loadReel(reel); });
 </script>

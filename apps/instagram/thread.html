@@ -1,6 +1,6 @@
 <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
 <main id="msgs" class="msgs"><div class="spinner"></div></main>
-<div class="pad" style="position:sticky;bottom:0;background:var(--bg)"><button class="button" id="reply" style="width:100%">Reply</button></div>
+<div class="composer"><button id="reply">Message…</button></div>
 <script>
 // One conversation (?id=thread_fbid), oldest at the top. Reading doesn't mark it as seen.
 let t;
@@ -22,15 +22,31 @@ function message(m, mine) {
   const text = m.text_body || c.text_body || m.igd_snippet;
   return (text ? `<div class="bubble ${side}">${rich(text)}</div>` : `<div class="bubble ${side} secondary">${esc(m.content_type?.toLowerCase().replace(/_/g, ' ') || 'Message')}</div>`) + hearts;
 }
+function stamp(ms) {
+  const d = new Date(ms), time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit'});
+  const days = Math.round((new Date(new Date().toDateString()) - new Date(d.toDateString())) / 864e5);
+  return days < 1 ? time : days < 7 ? d.toLocaleDateString(undefined, { weekday: 'short' }) + ' ' + time
+    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ', ' + time;
+}
 guard($('#msgs'), async () => {
   t = await ig.thread(fruitfox.params.id);
   const mine = t.viewer?.interop_messaging_user_fbid;
   const msgs = (t.slide_messages?.edges || []).map(e => e.node).reverse();
-  $('#msgs').innerHTML = msgs.map(m => message(m, m.sender_fbid === mine)).join('') || '<div class="center secondary">No messages</div>';
+  // A time stamp after an hour's quiet, and a little more room when the sender changes, like Instagram's chats.
+  let html = '', prevSender = null, prevTs = 0;
+  for (const m of msgs) {
+    const ts = +m.timestamp_ms || 0;
+    if (ts && ts - prevTs > 3600e3) { html += `<div class="tsep">${stamp(ts)}</div>`; prevSender = null; }
+    if (prevSender !== null && m.sender_fbid !== prevSender) html += '<div class="gap"></div>';
+    html += message(m, m.sender_fbid === mine);
+    prevSender = m.sender_fbid; if (ts) prevTs = ts;
+  }
+  $('#msgs').innerHTML = html || '<div class="center secondary">No messages</div>';
   scrollTo(0, document.body.scrollHeight);
 });
 // Instagram sends messages over a live binary connection an app page can't open, so replying happens on the
 // conversation's instagram.com page, in a sheet; the conversation reloads when it closes.
+settingsReady.then(() => { if (RO) $('.composer').innerHTML = '<div class="small secondary" style="text-align:center;padding:6px 0">Replying is off in Read-Only Mode</div>'; });
 $('#reply').onclick = async () => { await fruitfox.ui.web(IG + '/direct/t/' + (t?.thread_id || '')); location.reload(); };
 $('#msgs').addEventListener('click', e => {
   if (openLink(e)) return;

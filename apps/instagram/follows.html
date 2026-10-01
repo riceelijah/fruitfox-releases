@@ -1,11 +1,11 @@
 <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
-<div class="pad" style="position:sticky;top:0;background:var(--bg);z-index:1"><input class="field" id="q" type="search" placeholder="Search" autocomplete="off"></div>
+<div class="sbar"><input class="sbox" id="q" type="search" placeholder="Search" autocomplete="off"></div>
 <main id="list" class="list"><div class="spinner"></div></main>
 <script>
 // Followers or following (?id=&kind=followers|following).
 const { id, kind } = fruitfox.params;
 let users = [], next = null;
-const row = u => `<div class="cell row tappable" data-user="${esc(u.username)}" data-uid="${esc(u.pk)}"><img alt="" class="avatar" src="${esc(pic(u))}">
+const row = u => `<div class="cell row tappable" data-user="${esc(u.username)}" data-uid="${esc(u.pk)}"><img alt="" class="avatar" style="width:44px;height:44px" src="${esc(pic(u))}">
   <div class="grow"><div class="headline ellipsis">${esc(u.username)}${verified(u)}</div><div class="small secondary ellipsis">${esc(u.full_name)}</div></div></div>`;
 const show = () => { const q = $('#q').value.trim().toLowerCase(); $('#list').innerHTML = users.filter(u => !q || (u.username + ' ' + u.full_name).toLowerCase().includes(q)).map(row).join('') || '<div class="center secondary">Nobody here</div>'; };
 async function page() {

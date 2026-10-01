@@ -196,6 +196,14 @@ const ig = {
   save: async (id, on) => gql(on ? 'save' : 'unsave', await mediaInput(id)),
   likeComment: async (id, on) => gql(on ? 'likeComment' : 'unlikeComment', { input: { comment_id: String(id), actor_id: await actor(), client_mutation_id: String(++mutations) } }),
   likeStory: async (id, on) => gql(on ? 'likeStory' : 'unlikeStory', { input: { actor_id: await actor(), client_mutation_id: String(++mutations), media_id: String(id) } }),
+  /// Tells Instagram you watched one story item, which puts you in the owner's viewer list (what Ghost Story Views prevents).
+  /// ponytail: this is the web's own request (POST stories/reel/seen/); not yet confirmed against the live site, see NOTES.md.
+  seenStory: async (item, ownerId, reelId) => {
+    const s = await settings();
+    if (s.ghostStories !== false || s.readOnly) return;  // backstop: ghost (and Read-Only Mode) never send this
+    return api('stories/reel/seen/', { method: 'POST', form: { reelMediaId: String(item.pk), reelMediaOwnerId: String(ownerId), reelId: String(reelId),
+      reelMediaTakenAt: String(item.taken_at), viewSeenAt: String(Math.floor(Date.now() / 1000)) } });
+  },
   comment: (id, text, replyTo) => api(`web/comments/${id}/add/`, { method: 'POST', form: { comment_text: text, ...(replyTo ? { replied_to_comment_id: replyTo } : {}) } }),
   follow: (id, on) => gql(on ? 'follow' : 'unfollow', { target_user_id: String(id), container_module: 'profile' }),
   search: q => api('web/search/topsearch/?context=blended&query=' + encodeURIComponent(q)),
@@ -209,16 +217,19 @@ async function deviceId() {
 
 // MARK: Settings (settings.html)
 
-const defaults = { newestFirst: true, hideReels: true, hideSuggested: true, hideLikes: false, igColors: false, limit: 0 };
+const defaults = { newestFirst: true, hideReels: true, hideSuggested: true, hideLikes: false, igColors: true, hideStories: false, readOnly: false, ghostStories: true, limit: 0 };
 async function settings() { return { ...defaults, ...(await fruitfox.storage.get('settings')) }; }
 
 /// Instagram Colors: Instagram's blue, red hearts and gradient story rings instead of your Fruitfox accent color.
 /// Fruitfox sets --accent on the page itself, so it's replaced the same way (a stylesheet rule can't win).
 const fruitfoxAccent = document.documentElement.style.getPropertyValue('--accent');
+// Instagram Colors is on by default, so apply it straight away (no flash) and correct it once settings load.
+try { if (localStorage.getItem('igColors') === '0') throw 0; document.documentElement.classList.add('ig-colors'); document.documentElement.style.setProperty('--accent', '#0095f6'); } catch { }
 async function applyColors() {
   const on = (await settings()).igColors, root = document.documentElement;
   root.classList.toggle('ig-colors', on);
   root.style.setProperty('--accent', on ? '#0095f6' : fruitfoxAccent);
+  try { localStorage.setItem('igColors', on ? '1' : '0'); } catch { }
 }
 applyColors();
 fruitfox.on('refresh', applyColors);
@@ -255,11 +266,22 @@ fruitfox.on('refresh', applyColors);
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const $ = s => document.querySelector(s);
-const count = n => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'K' : (n ?? 0).toLocaleString();
+const count = n => n >= 1e6 ? +(n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? +(n / 1e3).toFixed(1) + 'K' : (n ?? 0).toLocaleString();
+const num = n => (n ?? 0).toLocaleString();
 function ago(t) {
   const s = Date.now() / 1000 - t;
   return s < 3600 ? Math.max(1, Math.round(s / 60)) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : s < 604800 ? Math.round(s / 86400) + 'd'
     : new Date(t * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+/// Under a post: "5 minutes ago", "2 days ago", then "September 12" (with the year if it isn't this one).
+function agoLong(t) {
+  const s = Date.now() / 1000 - t, p = (n, u) => `${n} ${u}${n === 1 ? '' : 's'} ago`;
+  if (s < 60) return 'Just now';
+  if (s < 3600) return p(Math.floor(s / 60), 'minute');
+  if (s < 86400) return p(Math.floor(s / 3600), 'hour');
+  if (s < 604800) return p(Math.floor(s / 86400), 'day');
+  const d = new Date(t * 1000);
+  return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) });
 }
 const best = m => m?.image_versions2?.candidates?.[0]?.url || m?.display_uri || m?.thumbnail_url;
 // Profile pictures only load on instagram.com's own pages (Cross-Origin-Resource-Policy), so Fruitfox fetches them.
@@ -268,16 +290,27 @@ const pic = u => fruitfox.media(u?.profile_pic_url || u?.hd_profile_pic_url_info
 addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.removeAttribute('src'); }, true);
 const isAd = m => m.ad_id || m.injected || m.ad_metadata || m.is_paid_partnership && m.injected;
 const isReel = m => m.product_type === 'clips';
-const verified = u => u?.is_verified ? ' <span class="verified">✓</span>' : '';
+const SEAL = (() => { let p = ''; for (let i = 0; i < 16; i++) { const r = i % 2 ? 9.2 : 10.8, a = i * Math.PI / 8; p += (i ? 'L' : 'M') + (12 + r * Math.sin(a)).toFixed(2) + ' ' + (12 - r * Math.cos(a)).toFixed(2); } return p + 'Z'; })();
+const verified = u => u?.is_verified ? `<svg class="vb" viewBox="0 0 24 24" aria-label="Verified"><path d="${SEAL}" fill="#0095f6" stroke="#0095f6" stroke-width="1.2" stroke-linejoin="round"/><path d="M7.8 12.4l3 3 5.4-5.6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>` : '';
 
-/// SF Symbols-like icons, drawn in the text color (and filled when on).
+/// Icons drawn like Instagram's own, in the text color (filled when `on`).
 const ICON = {
   heart: '<path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.8 3.6 4.5 7 4.5c2.1 0 3.7 1.2 5 3 1.3-1.8 2.9-3 5-3 3.4 0 5.6 3.3 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/>',
-  bubble: '<path d="M12 3.5c4.9 0 8.5 3.4 8.5 7.8s-3.6 7.8-8.5 7.8c-1.2 0-2.4-.2-3.4-.6L4 20l1.1-3.9C4 14.8 3.5 13.2 3.5 11.3c0-4.4 3.6-7.8 8.5-7.8z"/>',
-  send: '<path d="M21 3.5 3 10.5l7.2 2.8L21 3.5zM10.2 13.3 13 20.5l8-17"/>',
-  bookmark: '<path d="M6.5 3.5h11v17L12 16l-5.5 4.5z"/>',
+  bubble: '<path d="M20.656 17.008a9.993 9.993 0 1 0-3.59 3.615L22 22Z"/>',
+  send: '<line x1="22" y1="3" x2="9.218" y2="10.083"/><polygon points="11.698 20.334 22 3.001 2 3.001 9.218 10.083 11.698 20.334"/>',
+  bookmark: '<polygon points="20 21 12 13.44 4 21 4 3 20 3 20 21"/>',
+  more: '<circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
+  grid: '<path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/>',
+  reels: '<rect x="3" y="3" width="18" height="18" rx="4.5"/><path d="M3 8.5h18M9 3l3 5.5M15 3l3 5.5"/><path d="M10 12.2v5l4.2-2.5z" fill="currentColor"/>',
+  tag: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M6.5 20c.5-3 2.7-4.8 5.5-4.8s5 1.8 5.5 4.8"/>',
+  multi: '<rect x="8" y="3" width="13" height="13" rx="3"/><path d="M5 7.5v9.5a3 3 0 0 0 3 3h9.5"/>',
+  play: '<path d="M7 4.5v15l12-7.5z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  pin: '<path d="M9 3h6l-1 6 3 3H7l3-3zM12 12v8"/>',
+  muted: '<path d="M3 9.5v5h4l5 4v-13l-5 4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>',
+  unmuted: '<path d="M3 9.5v5h4l5 4v-13l-5 4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/>',
 };
-const icon = (name, on) => `<svg viewBox="0 0 24 24" width="26" height="26" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">${ICON[name]}</svg>`;
+const icon = (name, on, size = 24) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[name]}</svg>`;
 
 /// Caption and comment text: @mentions and #hashtags are tappable; web links open in Fruitfox.
 function rich(text) {
@@ -293,31 +326,48 @@ function mediaView(m) {
   const one = (x, i) => x.video_versions
     ? `<video playsinline muted loop preload="none" data-i="${i}" poster="${esc(best(x))}" src="${esc(x.video_versions[0].url)}" style="aspect-ratio:${1 / ratio}"></video>`
     : `<img alt="" loading="lazy" data-i="${i}" src="${esc(best(x))}" style="aspect-ratio:${1 / ratio}">`;
-  return `<div class="media"><div class="carousel">${items.map(one).join('')}</div><div class="burst">${icon('heart', true)}</div></div>`
-    + (items.length > 1 ? `<div class="dots">${items.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : '');
+  return `<div class="media"><div class="carousel">${items.map(one).join('')}</div><div class="burst">${icon('heart', true)}</div>`
+    + (items.length > 1 ? `<div class="counter">1/${items.length}</div>` : '')
+    + (!m.carousel_media && m.video_versions ? `<div class="vol">${icon('muted', false, 14)}</div>` : '') + '</div>';
 }
+const dotsView = n => `<div class="dots">${Array.from({ length: n }, (_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>`;
+
+// Your own id and picture, for "Add a comment…" and your story (filled in after the first load, then remembered).
+let MYID, MYPIC;
+const myPic = () => MYPIC ? fruitfox.media(MYPIC) : '';
+const paintMe = () => document.querySelectorAll('.me-avatar').forEach(i => { if (MYPIC) i.src = myPic(); });
 
 function postView(m, s) {
-  const u = m.user || m.owner || {};
-  const cap = m.caption?.text || '';
+  const u = m.user || m.owner || {}, uid = u.pk || u.id;
+  const cap = m.caption?.text || '', n = (m.carousel_media || []).length;
+  const following = u.friendship_status?.following;
+  const liker = m.facepile_top_likers?.[0]?.username || (typeof m.top_likers?.[0] === 'string' ? m.top_likers[0] : '');
+  const likes = s.hideLikes || m.like_and_view_counts_disabled ? ''
+    : !m.like_count ? 'Be the first to like this'
+    : liker && m.like_count > 1 ? `Liked by <b data-user="${esc(liker)}">${esc(liker)}</b> and <b>${num(m.like_count - 1)} ${m.like_count === 2 ? 'other' : 'others'}</b>`
+    : `<b>${num(m.like_count)} ${m.like_count === 1 ? 'like' : 'likes'}</b>`;
   return `<article class="post fade-in" data-id="${esc(m.id)}" data-pk="${esc(m.pk)}">
-    <div class="row pad">
-      <img alt="" class="avatar tappable" data-user="${esc(u.username)}" data-uid="${esc(u.pk || u.id)}" src="${esc(pic(u))}">
-      <div class="grow"><div class="headline ellipsis tappable" data-user="${esc(u.username)}" data-uid="${esc(u.pk || u.id)}">${esc(u.username)}${verified(u)}</div>
-        ${m.location?.name ? `<div class="caption secondary ellipsis">${esc(m.location.name)}</div>` : ''}</div>
-      <span class="small secondary">${ago(m.taken_at)}</span>
+    <div class="phead">
+      <img alt="" class="avatar tappable" data-user="${esc(u.username)}" data-uid="${esc(uid)}" src="${esc(pic(u))}">
+      <div class="pmeta"><div class="pname ellipsis tappable" data-user="${esc(u.username)}" data-uid="${esc(uid)}">${esc(u.username)}${verified(u)}</div>
+        ${m.location?.name ? `<div class="ploc ellipsis">${esc(m.location.name)}</div>` : ''}</div>
+      ${following === false && String(uid) !== String(MYID) && !s.readOnly ? '<button class="follow-inline">Follow</button>' : ''}
+      <button class="more-btn" aria-label="More options">${icon('more')}</button>
     </div>
     ${mediaView(m)}
-    <div class="row actions">
+    <div class="actions">
       <button class="icon-button like ${m.has_liked ? 'on' : ''}" aria-label="${m.has_liked ? 'Unlike' : 'Like'}">${icon('heart', m.has_liked)}</button>
-      <button class="icon-button comments" aria-label="Comments">${icon('bubble')}</button>
+      <button class="icon-button comments" aria-label="Comment">${icon('bubble')}</button>
       <button class="icon-button share" aria-label="Share">${icon('send')}</button>
+      ${n > 1 ? dotsView(n) : ''}
       <div class="grow"></div>
       <button class="icon-button save ${m.has_viewer_saved ? 'on' : ''}" aria-label="${m.has_viewer_saved ? 'Remove from Saved' : 'Save'}">${icon('bookmark', m.has_viewer_saved)}</button>
     </div>
-    ${s.hideLikes || m.like_and_view_counts_disabled ? '' : `<div class="pad0 headline likes">${count(m.like_count)} ${m.like_count === 1 ? 'like' : 'likes'}</div>`}
-    ${cap ? `<div class="pad0 caption-text ${cap.length > 140 || cap.split('\n').length > 3 ? 'clamped' : ''}"><b data-user="${esc(u.username)}">${esc(u.username)}</b> ${rich(cap)}</div>` : ''}
-    ${m.comment_count ? `<div class="pad0 secondary comments tappable">View ${m.comment_count === 1 ? '1 comment' : 'all ' + count(m.comment_count) + ' comments'}</div>` : ''}
+    ${likes ? `<div class="pad0 likes">${likes}</div>` : ''}
+    ${cap ? `<div class="pad0 caption-text ${cap.length > 100 || cap.split('\n').length > 2 ? 'clamped' : ''}"><b data-user="${esc(u.username)}">${esc(u.username)}</b> ${rich(cap)}</div>` : ''}
+    ${m.comment_count ? `<div class="pad0 gray comments tappable">View ${m.comment_count === 1 ? '1 comment' : 'all ' + num(m.comment_count) + ' comments'}</div>` : ''}
+    ${s.readOnly ? '' : `<div class="pad0 addc comments tappable"><img alt="" class="avatar me-avatar" src="${esc(myPic())}"><span>Add a comment…</span></div>`}
+    <div class="pad0 when">${agoLong(m.taken_at)}</div>
   </article>`;
 }
 
@@ -327,6 +377,7 @@ function wirePosts(root, find, render) {
   let lastTap = 0, tapTimer;
   const like = async (post, m, on) => {
     if (m.has_liked === on) return;
+    if (on && RO) return fruitfox.ui.toast(roMsg('Liking'));
     m.has_liked = on; m.like_count += on ? 1 : -1;
     fruitfox.ui.haptic(on ? 'success' : 'light');
     await redraw(post, m, render);
@@ -336,11 +387,27 @@ function wirePosts(root, find, render) {
     const post = e.target.closest('.post'), m = post && find(post.dataset.id);
     if (openLink(e)) return;
     if (!m) return;
+    const fb = e.target.closest('.follow-inline');
+    if (fb) {
+      if (RO) return fruitfox.ui.toast(roMsg('Following'));
+      fb.disabled = true;
+      try { await ig.follow(m.user?.pk || m.user?.id, true); fb.remove(); fruitfox.ui.haptic('success'); if (m.user?.friendship_status) m.user.friendship_status.following = true; }
+      catch (err) { fb.disabled = false; fruitfox.ui.toast(err.message); }
+      return;
+    }
+    if (e.target.closest('.more-btn')) {
+      const pick = await fruitfox.ui.menu([{ id: 'share', title: 'Share' }, { id: 'profile', title: 'Go to profile' }, { id: 'web', title: 'Open on Instagram' }], '');
+      if (pick === 'share') fruitfox.ui.share(`${IG}/p/${m.code}/`);
+      if (pick === 'profile') openLink({ target: post.querySelector('.pname') });
+      if (pick === 'web') fruitfox.ui.open(`${IG}/p/${m.code}/`);
+      return;
+    }
     const media = e.target.closest('.media');
     if (media) {
       // Double tap likes (with a heart); a single tap opens the photo full screen, or mutes/unmutes a video.
-      if (Date.now() - lastTap < 300) {
+      if (Date.now() - lastTap < 280) {
         clearTimeout(tapTimer); lastTap = 0;
+        if (RO) return fruitfox.ui.toast(roMsg('Liking'));
         const burst = media.querySelector('.burst'); burst.classList.remove('show'); void burst.offsetWidth; burst.classList.add('show');
         setTimeout(() => like(post, m, true), 450);
         return;
@@ -348,9 +415,13 @@ function wirePosts(root, find, render) {
       lastTap = Date.now();
       const el = e.target.closest('img, video');
       tapTimer = setTimeout(() => {
-        if (el?.tagName === 'VIDEO') { el.muted = !el.muted; return; }
+        // A video: Reels pause or resume it, the feed mutes or unmutes it (and keeps that for the next videos, like Instagram).
+        if (el?.tagName === 'VIDEO') {
+          if (window.onVideoTap) return onVideoTap(el, media);
+          el.muted = !el.muted; soundOn = !el.muted; vol(el); return;
+        }
         if (el) openViewer(m, +el.dataset.i);
-      }, 300);
+      }, 280);
     } else if (e.target.closest('.like')) {
       like(post, m, !m.has_liked);
     } else if (e.target.closest('.save')) {
@@ -366,16 +437,28 @@ function wirePosts(root, find, render) {
       e.target.closest('.clamped').classList.remove('clamped');
     }
   });
-  // Swiping a carousel moves its dots; videos play while on screen.
+  // Swiping a carousel moves its dots and its 1/3 counter; videos play while on screen.
   root.addEventListener('scroll', e => {
     const c = e.target; if (!c.classList?.contains('carousel')) return;
-    const i = Math.round(c.scrollLeft / c.clientWidth);
-    c.closest('.post')?.querySelectorAll('.dots i').forEach((d, j) => d.classList.toggle('on', j === i));
+    const i = Math.round(c.scrollLeft / c.clientWidth), p = c.closest('.post');
+    p?.querySelectorAll('.dots i').forEach((d, j) => d.classList.toggle('on', j === i));
+    const k = p?.querySelector('.counter'); if (k) k.textContent = `${i + 1}/${p.querySelectorAll('.dots i').length}`;
   }, true);
-  const seen = new IntersectionObserver(es => es.forEach(e => e.isIntersecting ? e.target.play().catch(() => {}) : e.target.pause()), { threshold: .6 });
-  new MutationObserver(() => root.querySelectorAll('video:not([data-seen])').forEach(v => { v.dataset.seen = 1; seen.observe(v); }))
-    .observe(root, { childList: true, subtree: true });
+  const vol = v => { const b = v.closest('.media')?.querySelector('.vol'); if (b) b.innerHTML = icon(v.muted ? 'muted' : 'unmuted', false, 14); };
+  const play = v => v.play().catch(() => { if (!window.onVideoTap && !v.muted) { v.muted = true; soundOn = false; vol(v); v.play().catch(() => {}); } });
+  const seen = new IntersectionObserver(es => es.forEach(e => {
+    const v = e.target;
+    if (!e.isIntersecting) return v.pause();
+    if (!window.onVideoTap) { v.muted = !soundOn; vol(v); }
+    play(v);
+  }), { threshold: .6 });
+  // Captions only get "… more" when they really are cut off.
+  const fit = () => root.querySelectorAll('.caption-text.clamped:not([data-fit])').forEach(el => { el.dataset.fit = 1; if (el.scrollHeight <= el.clientHeight + 1) el.classList.remove('clamped'); });
+  const watch = () => { root.querySelectorAll('video:not([data-seen])').forEach(v => { v.dataset.seen = 1; seen.observe(v); }); requestAnimationFrame(fit); paintMe(); };
+  new MutationObserver(watch).observe(root, { childList: true, subtree: true });
+  watch();
 }
+let soundOn = false;  // unmute one video in the feed and the next ones stay unmuted
 
 /// Full-screen photos and videos (viewer.html): pinch to zoom, swipe down to close.
 async function openViewer(m, i = 0) {
@@ -413,8 +496,12 @@ function findMedia(x, out = [], seen = new Set()) {
   for (const v of Object.values(x)) findMedia(v, out, seen);
   return out;
 }
-const tile = m => `<div class="tile" data-post="${esc(m.pk)}"><img alt="" loading="lazy" src="${esc(best(m.carousel_media?.[0] || m))}">${
-  m.carousel_media ? '<span class="badge">❐</span>' : m.video_versions || isReel(m) ? '<span class="badge">▶︎</span>' : ''}</div>`;
+const tile = m => {
+  const vid = m.video_versions || isReel(m), plays = m.play_count ?? m.view_count;
+  return `<div class="tile" data-post="${esc(m.pk)}"><img alt="" loading="lazy" src="${esc(best(m.carousel_media?.[0] || m))}">`
+    + (m.timeline_pin_info?.pinned_at ? `<span class="badge pin">${icon('pin', true, 18)}</span>` : m.carousel_media ? `<span class="badge">${icon('multi', false, 18)}</span>` : vid ? `<span class="badge">${icon('reels', false, 18)}</span>` : '')
+    + (vid && plays != null ? `<span class="views">${icon('play', true, 14)}${count(plays)}</span>` : '') + '</div>';
+};
 
 /// A grid (Explore, a profile, a hashtag) opens as a scrolling feed from the tapped post, like Instagram's, which keeps
 /// loading more from the same place (`source`, see posts.html) as you scroll.
@@ -457,8 +544,11 @@ function commentsView(root, id, owner) {
   root.innerHTML = `<div class="clist list"><div class="spinner"></div></div>
     <form class="compose"><div class="replying small secondary row" hidden><span class="grow"></span><a class="cancel">Cancel</a></div>
       <div class="emoji">${['❤️', '🙌', '🔥', '👏', '😢', '😍', '😮', '😂'].map(e => `<button type="button">${e}</button>`).join('')}</div>
-      <div class="row"><input class="field grow" placeholder="Add a comment…" enterkeyhint="send"><button class="button">Post</button></div></form>`;
-  const list = root.querySelector('.clist'), input = root.querySelector('input'), replying = root.querySelector('.replying');
+      <div class="cbox"><img alt="" class="avatar me-avatar" src="${esc(myPic())}"><div class="cpill"><input class="cinput" placeholder="Add a comment…" enterkeyhint="send"><button class="postbtn">Post</button></div></div></form>`;
+  const list = root.querySelector('.clist'), input = root.querySelector('input'), replying = root.querySelector('.replying'), postBtn = root.querySelector('.postbtn');
+  const armed = () => postBtn.classList.toggle('on', !!input.value.trim());
+  input.addEventListener('input', armed); paintMe();
+  settingsReady.then(() => { if (!RO) return; root.classList.add('ro'); root.querySelector('.compose').innerHTML = '<div class="small secondary" style="text-align:center;padding:10px 0">Commenting is off in Read-Only Mode</div>'; });
   let next = null, replyTo = null, busy = false;
   const view = (c, reply) => `<div class="comment row" style="${reply ? 'padding-left:58px' : ''}" data-comment="${esc(c.pk)}" data-author="${esc(c.user.username)}">
     <img alt="" class="avatar" style="${reply ? 'width:28px;height:28px' : ''}" src="${esc(pic(c.user))}" data-user="${esc(c.user.username)}" data-uid="${esc(c.user.pk)}">
@@ -466,7 +556,7 @@ function commentsView(root, id, owner) {
       <span class="secondary">${ago(c.created_at)}${String(c.user.pk) === String(owner) ? ' · Author' : ''}${c.is_liked_by_media_owner ? ' · <span style="color:var(--like)">♥</span> by author' : ''}</span></div>
       <div class="caption-text">${rich(c.text)}</div>
       <a class="reply small secondary">Reply</a>
-      ${!reply && c.child_comment_count ? `<a class="small secondary replies">— View ${c.child_comment_count} ${c.child_comment_count === 1 ? 'reply' : 'replies'}</a>` : ''}
+      ${!reply && c.child_comment_count ? `<a class="small secondary replies">—— View ${c.child_comment_count} ${c.child_comment_count === 1 ? 'reply' : 'replies'}</a>` : ''}
     </div>
     <button type="button" class="clikes secondary ${c.has_liked_comment ? 'on' : ''}" data-likes="${c.comment_like_count || 0}" aria-label="Like comment">${icon('heart', c.has_liked_comment)}<div class="caption">${c.comment_like_count ? count(c.comment_like_count) : ''}</div></button></div>`;
   async function page(min) {
@@ -483,7 +573,9 @@ function commentsView(root, id, owner) {
     if (openLink(e)) return;
     const c = e.target.closest('[data-comment]');
     const heart = e.target.closest('.clikes');
-    if (heart) {
+    if (heart && RO && !heart.classList.contains('on')) {
+      fruitfox.ui.toast(roMsg('Liking'));
+    } else if (heart) {
       const on = !heart.classList.contains('on'), n = +heart.dataset.likes + (on ? 1 : -1);
       const draw = (on, n) => { heart.classList.toggle('on', on); heart.dataset.likes = n; heart.innerHTML = icon('heart', on) + `<div class="caption">${n ? count(n) : ''}</div>`; };
       draw(on, n); fruitfox.ui.haptic(on ? 'success' : 'light');
@@ -495,12 +587,12 @@ function commentsView(root, id, owner) {
     } else if (e.target.closest('.reply')) {
       replyTo = c.dataset.comment;
       replying.hidden = false; replying.querySelector('span').textContent = 'Replying to ' + c.dataset.author;
-      input.value = '@' + c.dataset.author + ' '; input.focus();
+      input.value = '@' + c.dataset.author + ' '; armed(); input.focus();
     }
   });
-  const cancel = () => { replyTo = null; replying.hidden = true; input.value = ''; };
+  const cancel = () => { replyTo = null; replying.hidden = true; input.value = ''; armed(); };
   root.querySelector('.cancel').onclick = cancel;
-  root.querySelector('.emoji').addEventListener('click', e => { if (e.target.tagName === 'BUTTON') { input.value += e.target.textContent; input.focus(); } });
+  root.querySelector('.emoji').addEventListener('click', e => { if (e.target.tagName === 'BUTTON') { input.value += e.target.textContent; armed(); input.focus(); } });
   root.querySelector('form').onsubmit = async e => {
     e.preventDefault();
     const t = input.value.trim(); if (!t) return;
@@ -529,3 +621,38 @@ async function guard(root, f) {
     else root.innerHTML = `<div class="center"><div class="headline">Couldn’t load this</div><div class="secondary small">${esc(e.message)}</div></div>`;
   }
 }
+
+// Read-Only Mode: nothing this app does can notify anyone. Likes (posts, comments, stories), comments, follows and replies are
+// refused here as well as hidden in the pages, so nothing slips through. Hide Stories: no tray, rings or story viewer.
+let RO = false, NOSTORIES = false, GHOST = true;
+const syncFlags = s => { RO = !!s.readOnly; NOSTORIES = !!s.hideStories; GHOST = s.ghostStories !== false || RO; };  // Read-Only Mode always ghosts
+const settingsReady = (async () => syncFlags(await settings()))();
+fruitfox.on('refresh', () => { settingsReady.then(() => settings()).then(syncFlags); });
+const roMsg = what => `${what} is off while Read-Only Mode is on`;
+for (const [k, what] of [['like', 'Liking'], ['likeComment', 'Liking'], ['likeStory', 'Liking'], ['comment', 'Commenting'], ['follow', 'Following']]) {
+  const f = ig[k];
+  ig[k] = async (...a) => { if ((k === 'comment' || a[1]) && (await settings()).readOnly) throw new Error(roMsg(what)); return f(...a); };
+}
+
+// Stories you've watched, remembered by the app (Instagram itself isn't told): { reelId: taken_at of the newest item seen }.
+// A ring turns gray once you've reached a person's latest story; entries drop after two days, when stories expire anyway.
+const seenStories = async () => (await fruitfox.storage.get('seenStories')) || {};
+async function markSeen(reelId, takenAt) {
+  if (!reelId || String(reelId).startsWith('highlight:') || !takenAt) return;
+  const m = await seenStories(), cutoff = Date.now() / 1000 - 2 * 86400;
+  for (const k in m) if (m[k] < cutoff) delete m[k];
+  if ((m[reelId] || 0) >= takenAt) return;
+  m[reelId] = takenAt;
+  await fruitfox.storage.set('seenStories', m);
+}
+
+// Your id and picture, fetched once and remembered: "Add a comment…", your story and the comment box use them.
+(async () => {
+  try {
+    MYID = await me(); if (!MYID) return;
+    const c = await fruitfox.storage.get('mypic');
+    if (c?.user === MYID) MYPIC = c.url;
+    else { const u = await ig.profile(MYID); MYPIC = u.hd_profile_pic_url_info?.url || u.profile_pic_url; fruitfox.storage.set('mypic', { user: MYID, url: MYPIC }); }
+    paintMe();
+  } catch { }
+})();

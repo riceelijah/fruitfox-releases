@@ -3,7 +3,7 @@
     "id": "instagram",
     "name": "Instagram",
     "summary": "Feed, stories, reels, messages and profiles, signed in with your account.",
-    "version": "2",
+    "version": "5",
     "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/instagram.zip",
     "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/instagram/icon.png"
   }

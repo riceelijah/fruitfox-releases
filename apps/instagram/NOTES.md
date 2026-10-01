@@ -65,6 +65,13 @@ Relay flags (send them all; extras are ignored): see `RELAY` in ig.js.
 - Reading: PolarisDirectInboxQuery / IGDThreadDetailQuery above. Message `content.__typename`: `SlideMessageText` (text_body), `SlideMessageXMAContent` (a shared post/reel/link: `xma.header_title_text`, `xma.header_icon.url`, `xma.preview_image.url`, `xma.target_id` = media pk, `xma.target_url`), `SlideMessageAdminText` (notices: `text_fragments[].plaintext`), `SlideMessageRavenImageContent` (view-once), `msg_reactions[]` (hearts).
 - **Sending isn't an HTTP request:** instagram.com sends messages (and story replies) as binary MQTT over `wss://gateway.instagram.com/ws/realtime`. The app replies through the conversation's instagram.com page in a sheet (`fruitfox.ui.web`).
 
+## Story views (Ghost Story Views off)
+
+Unconfirmed, written from the web client's known request and not yet checked against the live site: POST `stories/reel/seen/` form
+`reelMediaId=<item pk>`, `reelMediaOwnerId=<owner pk>`, `reelId=<reel id, e.g. owner pk or highlight:<n>>`, `reelMediaTakenAt=<taken_at>`,
+`viewSeenAt=<now, seconds>`. Sent once per item, only with Ghost Story Views off and Read-Only Mode off. If Instagram moves this to a GraphQL
+mutation it will answer an error and the app shows a toast.
+
 ## Still to capture
 
 Posting a photo.

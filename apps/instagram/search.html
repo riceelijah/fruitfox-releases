@@ -1,7 +1,7 @@
 <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="ig.css"><script src="ig.js"></script>
-<div class="pad" style="position:sticky;top:0;background:var(--bg);z-index:1"><input class="field" id="q" type="search" placeholder="Search" autocomplete="off" enterkeyhint="search"></div>
+<div class="sbar"><input class="sbox" id="q" type="search" placeholder="Search" autocomplete="off" enterkeyhint="search"></div>
 <main id="results" class="list" hidden></main>
-<div class="grid" id="explore"><div class="spinner" style="grid-column:1/-1"></div></div>
+<div class="grid mosaic" id="explore"><div class="spinner" style="grid-column:1/-1"></div></div>
 <script>
 // Search accounts and hashtags (Return searches posts for the words); Explore underneath while the box is empty.
 let timer, next = null, items = [];
@@ -22,10 +22,10 @@ $('#q').oninput = () => {
     const r = await ig.search(q);
     if ($('#q').value.trim() !== q) return;
     const tags = (r.hashtags || []).map(h => h.hashtag).slice(0, 4).map(h => `<div class="cell row tappable" data-tag="${esc(h.name)}">
-      <div class="avatar" style="display:grid;place-items:center;font-size:20px">#</div><div class="grow"><div class="headline">#${esc(h.name)}</div>
+      <div class="avatar" style="display:grid;place-items:center;font-size:20px;border:1px solid var(--sep);border-radius:50%;width:44px;height:44px;box-sizing:border-box">#</div><div class="grow"><div class="headline">#${esc(h.name)}</div>
       <div class="small secondary">${count(h.media_count)} posts</div></div></div>`).join('');
     const users = (r.users || []).map(({ user: u }) => `<div class="cell row tappable" data-user="${esc(u.username)}" data-uid="${esc(u.pk || u.pk_id)}">
-      <img alt="" class="avatar" src="${esc(pic(u))}"><div class="grow"><div class="headline ellipsis">${esc(u.username)}${verified(u)}</div>
+      <img alt="" class="avatar" style="width:44px;height:44px" src="${esc(pic(u))}"><div class="grow"><div class="headline ellipsis">${esc(u.username)}${verified(u)}</div>
       <div class="small secondary ellipsis">${esc(u.full_name)}</div></div></div>`).join('');
     $('#results').innerHTML = users + tags || '<div class="center secondary">No results</div>';
   }), 400);  // waits for a pause in typing: fewer requests

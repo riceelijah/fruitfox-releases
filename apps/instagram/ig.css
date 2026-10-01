@@ -1,75 +1,153 @@
-/* Instagram's pieces on top of the kit. --like and --ring follow your accent color, or Instagram's with Instagram Colors. */
+/* Instagram's pieces on top of the kit, sized and spaced like Instagram for iPhone. With Instagram Colors on (the default)
+   --accent is Instagram's blue, hearts are red, story rings are the gradient, and grays match Instagram's. */
 :root { --like: var(--accent); --ring: var(--accent); }
-.ig-colors { --like: #ff3040; --ring: conic-gradient(#feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5, #feda75); }
+.ig-colors { --like: #ff3040; --ring: linear-gradient(45deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5); --sep: #dbdbdb; --fill: #efefef; }
+@media (prefers-color-scheme: dark) { .ig-colors { --sep: #262626; --fill: #262626; } }
 a { cursor: pointer; }
-.verified { color: var(--accent); font-size: .85em; }
+.vb { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; margin-left: 4px; }
+.gray { color: var(--fg2); }
 
-.post { padding-bottom: 14px; }
-.post + .post { border-top: .5px solid var(--sep); padding-top: 4px; }
-.media { position: relative; touch-action: manipulation; }
-.post .carousel img, .post .carousel video { width: 100%; }
+/* ---------- Posts ---------- */
+.post { padding: 0 0 14px; }
+.phead { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
+.post .avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex: none; background: var(--fill); }
+.pmeta { flex: 1; min-width: 0; }
+.pname { font-size: 14px; line-height: 18px; font-weight: 600; }
+.ploc { font-size: 12px; line-height: 15px; }
+.follow-inline { border: 0; background: none; color: var(--accent); font: inherit; font-size: 14px; font-weight: 600; padding: 6px 4px; }
+.follow-inline:disabled { opacity: .5; }
+.more-btn { border: 0; background: none; color: var(--fg); padding: 6px 0 6px 4px; display: grid; place-items: center; }
+
+.media { position: relative; touch-action: manipulation; background: var(--fill); }
+.post .carousel img, .post .carousel video { width: 100%; display: block; object-fit: cover; }
 .burst { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; color: #fff; opacity: 0;
   filter: drop-shadow(0 4px 20px rgb(0 0 0 / .35)); }
 .burst svg { width: 96px; height: 96px; }
 .burst.show { animation: burst .9s cubic-bezier(.2, 1.4, .4, 1); }
 @keyframes burst { 0% { opacity: 0; transform: scale(.3); } 15% { opacity: 1; transform: scale(1.1); } 30% { transform: scale(.95); } 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.1) translateY(-30px); } }
-.dots { display: flex; justify-content: center; gap: 4px; padding-top: 6px; }
-.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--sep); transition: background .2s, transform .2s; }
-.dots i.on { background: var(--accent); transform: scale(1.15); }
+.counter { position: absolute; top: 12px; right: 12px; background: rgb(26 26 26 / .8); color: #fff; font-size: 12px; font-weight: 600; line-height: 1; padding: 6px 10px; border-radius: 13px; pointer-events: none; }
+.vol { position: absolute; right: 12px; bottom: 12px; width: 28px; height: 28px; border-radius: 50%; background: rgb(26 26 26 / .8); color: #fff; display: grid; place-items: center; pointer-events: none; }
 
-.actions { padding: 4px 8px; gap: 2px; }
+.actions { position: relative; display: flex; align-items: center; padding: 4px 4px 2px; }
+.actions .icon-button { padding: 8px; margin: 0; border: 0; background: none; color: var(--fg); display: grid; place-items: center; }
 .icon-button svg { display: block; transition: transform .2s cubic-bezier(.3, 1.6, .5, 1); }
 .icon-button:active svg { transform: scale(.85); }
 .like.on { color: var(--like); }
 .like.on svg { animation: pop .35s cubic-bezier(.3, 1.6, .5, 1); }
 @keyframes pop { 50% { transform: scale(1.25); } }
 .save.on { color: var(--fg); }
-.pad0 { padding: 2px 16px; }
+.actions .dots { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 4px; pointer-events: none; }
+.dots i { width: 6px; height: 6px; border-radius: 50%; background: #a8a8a8; opacity: .55; transition: background .2s, opacity .2s; }
+.dots i.on { background: var(--accent); opacity: 1; }
+
+.pad0 { padding: 0 12px; font-size: 14px; line-height: 18px; margin-bottom: 4px; }
+.likes b { font-weight: 600; }
+.when { color: var(--fg2); font-size: 12px; line-height: 16px; margin-top: 6px; margin-bottom: 0; }
+.addc { display: flex; align-items: center; gap: 8px; color: var(--fg2); padding-top: 2px; }
+.post .addc .avatar { width: 24px; height: 24px; }
 .caption-text { white-space: pre-wrap; overflow-wrap: anywhere; }
-.caption-text.clamped { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.caption-text.clamped { position: relative; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.caption-text.clamped::after { content: '… more'; position: absolute; right: 0; bottom: 0; padding-left: 28px; color: var(--fg2);
+  background: linear-gradient(90deg, transparent, var(--bg) 28px); }
 .caption-text a { color: var(--accent); }
 .caption-text b { font-weight: 600; }
 
-.tray { display: flex; gap: 14px; overflow-x: auto; padding: 10px 16px; scrollbar-width: none; border-bottom: .5px solid var(--sep); }
+/* ---------- Stories tray and rings ---------- */
+.tray { display: flex; gap: 12px; overflow-x: auto; padding: 10px 12px 12px; scrollbar-width: none; border: 0; }
 .tray::-webkit-scrollbar { display: none; }
-.tray > div { flex: none; width: 70px; text-align: center; }
-.tray .avatar { width: 64px; height: 64px; margin: 0 auto 4px; }
-.avatar.ring { border: 0; padding: 3px; background: var(--ring) border-box; -webkit-mask: none; }
-.avatar.ring { box-shadow: inset 0 0 0 2px var(--bg); }
-.seen .avatar.ring { background: var(--sep); }
+.tray > div { flex: none; width: 76px; text-align: center; }
+.tray .caption { font-size: 12px; line-height: 16px; color: var(--fg); }
+.sr { position: relative; width: 76px; height: 76px; border-radius: 50%; padding: 2.5px; box-sizing: border-box; background: var(--ring); margin: 0 auto 4px; }
+.sr > img { display: block; width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--bg); box-sizing: border-box; object-fit: cover; background: var(--fill); }
+.seen .sr, .sr.seen { background: var(--sep); }
+.sr.none { background: none; }
+.sr.plain { width: 68px; height: 68px; padding: 1px; background: var(--sep); }
+.sr.big { width: 92px; height: 92px; margin: 0; flex: none; }
+.plus { position: absolute; right: 0; bottom: 0; width: 24px; height: 24px; border-radius: 50%; background: #0095f6; color: #fff; border: 2.5px solid var(--bg); box-sizing: border-box; display: grid; place-items: center; }
+.plus svg { width: 12px; height: 12px; stroke-width: 3; }
 
+/* ---------- Grids ---------- */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5px; }
 .grid > .tile { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--fill); }
-.tile img { width: 100%; height: 100%; object-fit: cover; }
-.tile .badge { position: absolute; top: 6px; right: 7px; color: #fff; font-size: 14px; text-shadow: 0 1px 3px #0008; }
+.grid.tall > .tile { aspect-ratio: 3 / 4; }
+.tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tile .badge { position: absolute; top: 8px; right: 8px; color: #fff; display: grid; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .5)); }
+.tile .views { display: none; position: absolute; left: 7px; bottom: 6px; align-items: center; gap: 3px; color: #fff; font-size: 12px; font-weight: 600; text-shadow: 0 1px 3px rgb(0 0 0 / .6); }
+.grid.reels .views { display: flex; }
+/* Explore: a big tile now and then, like Instagram's mosaic. */
+.grid.mosaic { grid-auto-flow: dense; grid-auto-rows: calc((100vw - 3px) / 3); }
+.mosaic > .tile { aspect-ratio: auto; }
+.mosaic > .tile:nth-child(18n + 3) { grid-column: 2 / span 2; grid-row: span 2; }
+.mosaic > .tile:nth-child(18n + 12) { grid-column: 1 / span 2; grid-row: span 2; }
 
+/* ---------- Profile ---------- */
+.phd { display: flex; align-items: center; gap: 24px; padding: 12px 16px 6px; }
+.pstats { display: flex; flex: 1; justify-content: space-around; text-align: center; }
+.pstats b { display: block; font-size: 16px; line-height: 20px; font-weight: 600; }
+.pstats span { font-size: 13px; line-height: 16px; }
+.pstats .tappable { border-radius: 10px; padding: 4px 6px; }
+.pbio { padding: 0 16px; font-size: 14px; line-height: 18px; }
+.pbio .nm { font-weight: 600; }
+.pbio a { font-weight: 600; }
+.pbtns { display: flex; gap: 6px; padding: 12px 16px; }
+.pbtns button { flex: 1; border: 0; border-radius: 8px; background: var(--fill); color: var(--fg); font: inherit; font-size: 14px; font-weight: 600; padding: 8px 0; }
+.pbtns button.blue { background: var(--accent); color: #fff; }
 .segments { display: flex; border-bottom: .5px solid var(--sep); }
-.segments button { flex: 1; border: 0; background: none; color: var(--fg2); padding: 11px 0; font: -apple-system-subheadline; font-weight: 600;
-  border-bottom: 1.5px solid transparent; transition: color .2s, border-color .2s; }
+.segments button { flex: 1; border: 0; background: none; color: var(--fg2); padding: 11px 0; display: grid; place-items: center;
+  border-bottom: 1px solid transparent; transition: color .2s, border-color .2s; }
 .segments button.on { color: var(--fg); border-color: var(--fg); }
-.stats > div { flex: 1; text-align: center; }
-.stats .tappable { border-radius: 10px; padding: 4px 0; }
+.hl { padding-top: 6px; }
+.hl .caption { font-size: 12px; }
 
+/* ---------- Search fields ---------- */
+.sbox { width: 100%; box-sizing: border-box; height: 36px; border: 0; border-radius: 10px; color: var(--fg); font: inherit; font-size: 16px; outline: none; padding: 0 12px 0 34px;
+  background: var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='7'/%3E%3Cpath d='M16 16l5 5'/%3E%3C/svg%3E") no-repeat 10px center / 16px; }
+.sbox::-webkit-search-cancel-button { -webkit-appearance: none; }
+.sbar { position: sticky; top: 0; z-index: 1; background: var(--bg); padding: 8px 16px; }
+.cell .avatar { object-fit: cover; }
+
+/* ---------- Time limit ---------- */
 .limit { position: fixed; inset: 0; z-index: 10; background: var(--bg); display: grid; place-content: center; gap: 14px; padding: 32px; text-align: center; }
 .limit .button { width: 100%; }
 
-.bubble { max-width: 75%; padding: 8px 13px; border-radius: 18px; background: var(--fill); overflow-wrap: anywhere; white-space: pre-wrap; }
+/* ---------- Messages ---------- */
+.msgs { display: flex; flex-direction: column; gap: 2px; padding: 12px; }
+.msgs .gap { height: 8px; }
+.tsep { align-self: center; color: var(--fg2); font-size: 12px; padding: 14px 0 6px; }
+.bubble { max-width: 72%; padding: 9px 14px; border-radius: 22px; font-size: 15px; line-height: 20px; background: var(--fill); overflow-wrap: anywhere; white-space: pre-wrap; }
 .bubble.mine { margin-left: auto; background: var(--accent); color: #fff; }
-.msgs { display: flex; flex-direction: column; gap: 4px; padding: 12px; }
-.card { width: 65%; border-radius: 16px; overflow: hidden; background: var(--fill); }
+.ig-colors .bubble.mine { background: linear-gradient(135deg, #7b3ff2, #3b82f6); }
+.card { width: 65%; border-radius: 18px; overflow: hidden; background: var(--fill); }
 .card.mine { margin-left: auto; }
 .bubble, .card { align-self: flex-start; }
+.bubble.mine, .card.mine { align-self: flex-end; }
+.composer { position: sticky; bottom: 0; background: var(--bg); padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px); }
+.composer button { width: 100%; text-align: left; border: 1px solid var(--sep); border-radius: 22px; background: var(--bg); color: var(--fg2); font: inherit; font-size: 15px; padding: 11px 16px; }
+.unread-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none; }
 
-/* Comments (commentsView): a scrolling list above the box to add one. */
+/* ---------- Activity ---------- */
+.sect { font-size: 16px; font-weight: 700; padding: 16px 16px 6px; }
+.act-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 4px; }
+
+/* ---------- Comments ---------- */
 .comments-page { display: flex; flex-direction: column; height: 100vh; }
 .clist { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
-.comment { align-items: flex-start; padding: 10px 14px; gap: 10px; }
-.comment .reply, .comment .replies { display: block; margin-top: 4px; }
+.comment { align-items: flex-start; padding: 12px 16px; gap: 12px; }
+.comment .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: none; }
+.comment .reply, .comment .replies { display: block; margin-top: 6px; font-weight: 600; }
 .clikes { display: grid; justify-items: center; padding-top: 4px; }
-.clikes svg { width: 18px; height: 18px; }
+.clikes svg { width: 16px; height: 16px; }
+.clikes { border: 0; background: none; color: var(--fg2); }
+.clikes.on { color: var(--like); }
 .compose { padding: 6px 12px calc(env(safe-area-inset-bottom) + 8px); border-top: .5px solid var(--sep); background: inherit; }
-.compose .emoji { display: flex; justify-content: space-between; padding: 4px 2px 8px; }
+.compose .emoji { display: flex; justify-content: space-between; padding: 6px 2px 10px; }
 .compose .emoji button { border: 0; background: none; font-size: 26px; padding: 0; transition: transform .15s; }
 .compose .emoji button:active { transform: scale(1.3); }
 .compose .replying { padding-bottom: 6px; }
-.clikes { border: 0; background: none; color: var(--fg2); }
-.clikes.on { color: var(--like); }
+.cbox { display: flex; align-items: center; gap: 10px; }
+.cbox .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: none; background: var(--fill); }
+.cpill { flex: 1; min-width: 0; display: flex; align-items: center; height: 40px; border: 1px solid var(--sep); border-radius: 22px; padding: 0 6px 0 14px; }
+.cinput { flex: 1; min-width: 0; border: 0; background: none; color: var(--fg); font: inherit; font-size: 16px; outline: none; }
+.postbtn { border: 0; background: none; color: var(--accent); font: inherit; font-size: 15px; font-weight: 600; padding: 8px 8px; opacity: .4; }
+.postbtn.on { opacity: 1; }
+.ro .reply { display: none !important; }
