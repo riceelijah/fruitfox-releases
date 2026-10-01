@@ -1,0 +1,42 @@
+/* Bluesky's iOS app on the kit: avatar column, name · handle · time, embeds in rounded cards, quiet count row. */
+:root { --bsky: #0085ff; }
+.tabsbar { position: sticky; top: 0; z-index: 3; background: var(--bg); display: flex; gap: 22px; overflow-x: auto; padding: 0 16px; border-bottom: .5px solid var(--sep); scrollbar-width: none; }
+.tabsbar span { flex: none; padding: 12px 0 10px; font: -apple-system-subheadline; font-weight: 600; color: var(--fg2); border-bottom: 3px solid transparent; }
+.tabsbar span.on { color: var(--fg); border-bottom-color: var(--bsky); }
+.p { display: flex; gap: 10px; padding: 12px 16px 6px; border-bottom: .5px solid var(--sep); }
+.p .av { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--fill); flex: none; }
+.p .body { flex: 1; min-width: 0; }
+.p .by { font: -apple-system-subheadline; display: flex; gap: 4px; white-space: nowrap; overflow: hidden; }
+.p .by b { overflow: hidden; text-overflow: ellipsis; } .p .by span { color: var(--fg2); overflow: hidden; text-overflow: ellipsis; }
+.p .ctx { font: -apple-system-footnote; color: var(--fg2); font-weight: 600; margin: 0 0 4px; }
+.p .tx { font: -apple-system-subheadline; font-size: 15.5px; line-height: 1.38; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 1px; }
+.p .tx a { color: var(--bsky); }
+.p .acts { display: flex; justify-content: space-between; max-width: 320px; margin: 8px 0 4px -6px; color: var(--fg2); font: -apple-system-footnote; }
+.p .acts button { border: 0; background: none; color: inherit; font: inherit; display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px; }
+.p .acts .liked { color: #ec4899; } .p .acts .reposted { color: #20bc07; }
+.imgs { display: grid; gap: 4px; margin-top: 8px; border-radius: 12px; overflow: hidden; }
+.imgs.n2, .imgs.n4 { grid-template-columns: 1fr 1fr; } .imgs.n3 { grid-template-columns: 1fr 1fr; } .imgs.n3 img:first-child { grid-row: span 2; }
+.imgs img { width: 100%; height: 100%; max-height: 520px; object-fit: cover; display: block; background: var(--fill); aspect-ratio: auto; }
+.imgs.n2 img, .imgs.n3 img, .imgs.n4 img { aspect-ratio: 1; }
+.ext, .quote { display: block; margin-top: 8px; border: .5px solid var(--sep); border-radius: 12px; overflow: hidden; }
+.ext img { width: 100%; aspect-ratio: 1.91; object-fit: cover; display: block; }
+.ext .t { padding: 8px 12px 10px; } .ext .t b { display: block; font: -apple-system-subheadline; font-weight: 600; } .ext .t span { font: -apple-system-caption1; color: var(--fg2); }
+.quote { padding: 10px 12px; } .quote .by { font: -apple-system-footnote; } .quote .by img { width: 18px; height: 18px; border-radius: 50%; vertical-align: -4px; margin-right: 4px; }
+.quote .tx { font: -apple-system-footnote; }
+.vid { margin-top: 8px; border-radius: 12px; overflow: hidden; background: #000; }
+.vid video { width: 100%; max-height: 520px; display: block; }
+.blurred img, .blurred video { filter: blur(30px); } .warn { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--fill); font: -apple-system-footnote; color: var(--fg2); }
+.prof .banner { aspect-ratio: 3; background: var(--bsky) center / cover; }
+.prof .top { padding: 0 16px; margin-top: -36px; display: flex; align-items: flex-end; justify-content: space-between; }
+.prof .top img { width: 84px; height: 84px; border-radius: 50%; border: 3px solid var(--bg); object-fit: cover; background: var(--fill); }
+.prof .n { padding: 6px 16px 0; font: -apple-system-title2; font-weight: 800; } .prof .h { padding: 0 16px; color: var(--fg2); }
+.prof .stats { padding: 8px 16px; font: -apple-system-footnote; color: var(--fg2); } .prof .stats b { color: var(--fg); }
+.prof .bio { padding: 0 16px 12px; white-space: pre-wrap; font: -apple-system-subheadline; }
+.follow { border: 0; border-radius: 999px; padding: 8px 18px; background: var(--bsky); color: #fff; font: -apple-system-subheadline; font-weight: 700; }
+.follow.on { background: var(--fill); color: var(--fg); }
+.notif { display: flex; gap: 10px; padding: 12px 16px; border-bottom: .5px solid var(--sep); }
+.notif .ic { width: 42px; text-align: right; font-size: 22px; flex: none; }
+.sbar { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 8px 16px; }
+.sbox { width: 100%; box-sizing: border-box; border: 0; border-radius: 999px; padding: 9px 14px; font: -apple-system-body; background: var(--fill); color: var(--fg); }
+.compose textarea { width: 100%; box-sizing: border-box; min-height: 180px; border: 0; padding: 16px; font: -apple-system-body; background: var(--bg); color: var(--fg); resize: none; outline: none; }
+.thread-main .tx { font: -apple-system-body; }

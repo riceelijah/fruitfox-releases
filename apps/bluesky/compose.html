@@ -1,0 +1,38 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="bs.css"><script src="bs.js"></script>
+<main class="compose"><div id="ctx" class="pad small secondary"></div><textarea id="t" placeholder="What’s up?" maxlength="3000"></textarea>
+  <div class="pad row"><span class="grow small secondary" id="n">300</span><button class="button" id="post">Post</button></div></main>
+<script>
+// A new post, reply or quote (300 characters; links, mentions and tags become links).
+let o;
+const graphemes = s => [...new Intl.Segmenter().segment(s)].length;
+/// Facets for links, @mentions and #tags, as byte ranges.
+async function facets(text) {
+  const enc = new TextEncoder(), out = [], at = i => enc.encode(text.slice(0, i)).length;
+  for (const m of text.matchAll(/https?:\/\/[^\s]+/g)) out.push({ index: { byteStart: at(m.index), byteEnd: at(m.index + m[0].length) }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: m[0] }] });
+  for (const m of text.matchAll(/(^|\s)(#[^\s#]+)/g)) { const s = m.index + m[1].length; out.push({ index: { byteStart: at(s), byteEnd: at(s + m[2].length) }, features: [{ $type: 'app.bsky.richtext.facet#tag', tag: m[2].slice(1) }] }); }
+  for (const m of text.matchAll(/(^|\s)@([a-z0-9.-]+\.[a-z]+)/gi)) {
+    try { const did = (await call('com.atproto.identity.resolveHandle', { handle: m[2] })).did; const s = m.index + m[1].length;
+      out.push({ index: { byteStart: at(s), byteEnd: at(s + m[2].length + 1) }, features: [{ $type: 'app.bsky.richtext.facet#mention', did }] }); } catch {}
+  }
+  return out;
+}
+(async () => {
+  await settings();
+  o = (await fruitfox.storage.get('compose')) || {};
+  if (o.reply) $('#ctx').textContent = 'Replying to @' + o.reply.author.handle;
+  if (o.quote) $('#ctx').textContent = 'Quoting @' + o.quote.author.handle;
+  $('#t').focus();
+})();
+$('#t').addEventListener('input', () => { const left = 300 - graphemes($('#t').value); $('#n').textContent = left; $('#n').style.color = left < 0 ? 'red' : ''; });
+$('#post').addEventListener('click', async () => {
+  const text = $('#t').value.trim(); if (!text || graphemes(text) > 300) return;
+  $('#post').textContent = 'Posting…';
+  try {
+    const rec = { text, facets: await facets(text), langs: [navigator.language.split('-')[0]] };
+    if (o.reply) { const root = o.reply.record?.reply?.root || { uri: o.reply.uri, cid: o.reply.cid }; rec.reply = { root, parent: { uri: o.reply.uri, cid: o.reply.cid } }; }
+    if (o.quote) rec.embed = { $type: 'app.bsky.embed.record', record: { uri: o.quote.uri, cid: o.quote.cid } };
+    await createRecord('app.bsky.feed.post', rec);
+    haptic('success'); fruitfox.ui.toast('Posted'); fruitfox.ui.back();
+  } catch (e) { $('#post').textContent = 'Post'; fruitfox.ui.toast(e.message); }
+});
+</script>

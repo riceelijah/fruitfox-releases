@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="bs.css"><script src="bs.js"></script>
+<main id="page"><div class="spinner"></div></main>
+<script>
+// A profile: yours (the Profile tab; sign in here) or anyone's, with Posts, Replies and Media.
+let actor = fruitfox.params.actor, tab = 'posts_no_replies', cursor;
+async function posts(next) {
+  const r = await call('app.bsky.feed.getAuthorFeed', { actor, limit: 30, cursor: next, filter: tab });
+  cursor = r.cursor;
+  return r.feed.map(i => postHTML(i)).join('');
+}
+async function load() {
+  await settings();
+  const s = await sess(), mine = !fruitfox.params.actor;
+  if (mine && !s) {
+    $('#page').innerHTML = `<div class="pad"><div class="title" style="margin:20px 0 6px">Sign in to Bluesky</div>
+      <div class="secondary small" style="margin-bottom:16px">Use an app password (Bluesky › Settings › Privacy and Security › App Passwords), not your main password.</div>
+      <div class="list inset" style="margin:0"><div class="cell"><input id="id" class="sbox" style="border-radius:8px" placeholder="Handle or email" autocapitalize="off" autocorrect="off"></div>
+      <div class="cell"><input id="pw" class="sbox" style="border-radius:8px" type="password" placeholder="App password"></div></div>
+      <button class="button" id="go" style="margin-top:16px;width:100%">Sign In</button>
+      <button class="button plain" id="pwlink" style="margin-top:8px;width:100%">Make an App Password</button></div>`;
+    fruitfox.ui.buttons([{ id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+    return;
+  }
+  actor ||= s.did;
+  try {
+    const p = await call('app.bsky.actor.getProfile', { actor });
+    fruitfox.ui.title(p.displayName || p.handle);
+    const following = p.viewer?.following;
+    $('#page').innerHTML = `<div class="prof"><div class="banner" style="${p.banner ? `background-image:url('${esc(p.banner)}')` : ''}"></div>
+      <div class="top"><img alt="" src="${esc(p.avatar || '')}">${mine ? '' : `<button class="follow ${following ? 'on' : ''}" id="follow">${following ? 'Following' : '+ Follow'}</button>`}</div>
+      <div class="n">${esc(p.displayName || p.handle)}</div><div class="h">@${esc(p.handle)}${p.viewer?.followedBy ? ' · Follows you' : ''}</div>
+      <div class="stats"><b>${num(p.followersCount) || 0}</b> followers &nbsp; <b>${num(p.followsCount) || 0}</b> following &nbsp; <b>${num(p.postsCount) || 0}</b> posts</div>
+      ${p.description ? `<div class="bio">${esc(p.description)}</div>` : ''}</div>
+      <div class="tabsbar">${[['posts_no_replies', 'Posts'], ['posts_with_replies', 'Replies'], ['posts_with_media', 'Media']].map(([k, n]) => `<span class="tappable ${k === tab ? 'on' : ''}" data-t="${k}">${n}</span>`).join('')}</div>
+      <div id="list">${await posts()}</div>`;
+    fruitfox.ui.buttons(mine ? [{ id: 'signout', symbol: 'rectangle.portrait.and.arrow.right', title: 'Sign Out' }, ...BUTTONS] : BUTTONS);
+    $('#follow')?.addEventListener('click', async e => {
+      try {
+        if (!await needAccount()) return;
+        if (following) await deleteRecord(following); else await createRecord('app.bsky.graph.follow', { subject: p.did });
+        haptic('success'); load();
+      } catch (err) { fruitfox.ui.toast(err.message); }
+    });
+  } catch (e) { $('#page').innerHTML = errorHTML(e); }
+}
+$('#page').addEventListener('click', async e => {
+  if (e.target.id === 'go') {
+    e.target.textContent = 'Signing In…';
+    try { await signIn($('#id').value.trim().replace(/^@/, ''), $('#pw').value); haptic('success'); load(); } catch (err) { e.target.textContent = 'Sign In'; fruitfox.ui.toast(err.message); }
+  }
+  if (e.target.id === 'pwlink') fruitfox.ui.web('https://bsky.app/settings/app-passwords');
+  const t = e.target.closest('[data-t]'); if (t) { tab = t.dataset.t; haptic('select'); load(); }
+});
+wirePosts($('#page'));
+onNearEnd(async () => { if (cursor && $('#list')) $('#list').insertAdjacentHTML('beforeend', await posts(cursor)); });
+fruitfox.on('button', async b => { if (b === 'signout') { await signOut(); load(); } });
+fruitfox.on('refresh', load);
+load();
+</script>

@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="bs.css"><script src="bs.js"></script>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// A post with what it replies to above it and its replies below.
+const uri = fruitfox.params.uri;
+async function load() {
+  await settings();
+  try {
+    const t = (await call('app.bsky.feed.getPostThread', { uri, depth: 10, parentHeight: 20 })).thread;
+    const parents = []; for (let p = t.parent; p?.post; p = p.parent) parents.unshift(p);
+    const replies = (n, d = 0) => (n.replies || []).filter(r => r.post).sort((a, b) => (b.post.likeCount || 0) - (a.post.likeCount || 0))
+      .map(r => `<div style="margin-left:${Math.min(d, 4) * 14}px">${postHTML(r)}</div>` + replies(r, d + 1)).join('');
+    $('#list').innerHTML = parents.map(p => postHTML(p)).join('') + postHTML(t, { main: true }) + replies(t);
+    $('.thread-main')?.scrollIntoView();
+  } catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+wirePosts($('#list'));
+fruitfox.ui.buttons([{ id: 'settings', symbol: 'slider.horizontal.3', title: 'Settings' }]);
+fruitfox.on('refresh', load);
+load();
+</script>

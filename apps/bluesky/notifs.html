@@ -1,0 +1,31 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="bs.css"><script src="bs.js"></script>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// Notifications: likes, reposts, follows, replies, mentions and quotes (signed in).
+const IC = { like: '♥', repost: '↻', follow: '👤', reply: '💬', mention: '@', quote: '❝', 'like-via-repost': '♥', 'repost-via-repost': '↻' };
+let cursor;
+async function page(next) {
+  const r = await call('app.bsky.notification.listNotifications', { limit: 40, cursor: next }); cursor = r.cursor;
+  const subjects = [...new Set(r.notifications.map(n => n.reasonSubject).filter(Boolean))].slice(0, 25);
+  const texts = subjects.length ? Object.fromEntries((await call('app.bsky.feed.getPosts', { uris: subjects })).posts.map(p => [p.uri, p.record.text])) : {};
+  return r.notifications.map(n => {
+    if (['reply', 'mention', 'quote'].includes(n.reason)) return postHTML({ post: { ...n, indexedAt: n.indexedAt, record: n.record, viewer: {} } });
+    const what = { like: 'liked your post', repost: 'reposted your post', follow: 'followed you' }[n.reason.replace('-via-repost', '')] || n.reason;
+    return `<div class="notif tappable" ${n.reasonSubject ? `data-uri="${esc(n.reasonSubject)}"` : `data-actor="${esc(n.author.did)}"`}><div class="ic" style="color:${n.reason.startsWith('like') ? '#ec4899' : 'var(--bsky)'}">${IC[n.reason] || '•'}</div>
+      <div><img alt="" class="av" style="width:32px;height:32px;border-radius:50%" src="${esc(n.author.avatar || '')}"><div><b>${esc(n.author.displayName || n.author.handle)}</b> ${what} <span class="secondary">· ${when(n.indexedAt)}</span></div>
+      ${texts[n.reasonSubject] ? `<div class="small secondary">${esc(texts[n.reasonSubject])}</div>` : ''}</div></div>`;
+  }).join('');
+}
+async function load() {
+  await settings();
+  if (!await sess()) { $('#list').innerHTML = '<div class="center"><div class="headline">Your notifications</div><div class="secondary">Sign in to Bluesky in Profile to see likes, replies and follows.</div></div>'; return; }
+  try { $('#list').innerHTML = await page() || '<div class="center secondary">Nothing yet.</div>'; call('app.bsky.notification.updateSeen', {}, { seenAt: new Date().toISOString() }).catch(() => {}); }
+  catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+$('#list').addEventListener('click', e => { const n = e.target.closest('.notif[data-uri]'); if (n) fruitfox.ui.push('thread.html?uri=' + encodeURIComponent(n.dataset.uri), 'Post'); });
+wirePosts($('#list'));
+onNearEnd(async () => { if (cursor) $('#list').insertAdjacentHTML('beforeend', await page(cursor)); });
+fruitfox.ui.buttons(BUTTONS);
+fruitfox.on('refresh', load);
+load();
+</script>

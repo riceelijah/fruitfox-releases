@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="bs.css"><script src="bs.js"></script>
+<div class="sbar"><input class="sbox" id="q" type="search" placeholder="Search posts and people" autocomplete="off" enterkeyhint="search"></div>
+<div class="tabsbar" id="tabs"><span class="tappable on" data-k="top">Top</span><span class="tappable" data-k="latest">Latest</span><span class="tappable" data-k="people">People</span></div>
+<main id="list"></main>
+<script>
+// Search: posts (signed in; Bluesky only allows it then) and people.
+let kind = 'top', cursor;
+async function run(next) {
+  const q = $('#q').value.trim(); if (!q) return;
+  if (!next) $('#list').innerHTML = '<div class="spinner"></div>';
+  try {
+    let html;
+    if (kind === 'people') {
+      const r = await call('app.bsky.actor.searchActors', { q, limit: 30, cursor: next }); cursor = r.cursor;
+      html = r.actors.map(a => `<div class="notif tappable" data-actor="${esc(a.did)}"><img alt="" class="av" style="width:42px;height:42px;border-radius:50%" src="${esc(a.avatar || '')}">
+        <div><b>${esc(a.displayName || a.handle)}</b><div class="small secondary">@${esc(a.handle)}</div><div class="small">${esc((a.description || '').slice(0, 140))}</div></div></div>`).join('');
+    } else {
+      if (!await sess()) { $('#list').innerHTML = '<div class="center secondary">Bluesky only searches posts when you’re signed in (Profile). People search works now.</div>'; return; }
+      const r = await call('app.bsky.feed.searchPosts', { q, sort: kind, limit: 30, cursor: next }); cursor = r.cursor;
+      html = r.posts.map(p => postHTML({ post: p })).join('');
+    }
+    if (next) $('#list').insertAdjacentHTML('beforeend', html); else $('#list').innerHTML = html || '<div class="center secondary">No results.</div>';
+  } catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { $('#q').blur(); run(); } });
+$('#tabs').addEventListener('click', e => { const t = e.target.closest('[data-k]'); if (!t) return; kind = t.dataset.k; document.querySelectorAll('#tabs span').forEach(s => s.classList.toggle('on', s === t)); haptic('select'); run(); });
+wirePosts($('#list'));
+onNearEnd(() => cursor && run(cursor));
+settings().then(() => { if (fruitfox.params.q) { $('#q').value = fruitfox.params.q; run(); } });
+</script>

@@ -1,0 +1,12 @@
+{
+  "name": "Bluesky",
+  "version": "1",
+  "icon": "icon.png",
+  "sites": ["bsky.app", "bsky.social", "bsky.network", "plc.directory"],
+  "tabs": [
+    { "title": "Home", "symbol": "house", "page": "home.html" },
+    { "title": "Search", "symbol": "magnifyingglass", "page": "search.html" },
+    { "title": "Notifications", "symbol": "bell", "page": "notifs.html" },
+    { "title": "Profile", "symbol": "person.crop.circle", "page": "profile.html" }
+  ]
+}

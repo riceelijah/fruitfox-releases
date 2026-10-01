@@ -30,5 +30,13 @@
     "version": "1",
     "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/youtube.zip",
     "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/youtube/icon.png"
+  },
+  {
+    "id": "bluesky",
+    "name": "Bluesky",
+    "summary": "Following, Discover and your pinned feeds, threads, search, notifications, profiles; post, reply, quote, like, repost and follow with an app password; filters and switches.",
+    "version": "1",
+    "zip": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/bluesky.zip",
+    "icon": "https://raw.githubusercontent.com/riceelijah/fruitfox-releases/main/apps/bluesky/icon.png"
   }
 ]

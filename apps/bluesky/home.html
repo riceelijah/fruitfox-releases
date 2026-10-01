@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css"><link rel="stylesheet" href="bs.css"><script src="bs.js"></script>
+<div class="tabsbar" id="tabs"></div>
+<main id="list"><div class="spinner"></div></main>
+<script>
+// Home: Following (signed in), Discover, and the feeds you've pinned, as tabs across the top like the Bluesky app.
+let feeds = [], cur, cursor;
+async function page(next) {
+  const r = cur === 'following' ? await call('app.bsky.feed.getTimeline', { limit: 30, cursor: next })
+    : await call('app.bsky.feed.getFeed', { feed: cur, limit: 30, cursor: next });
+  cursor = r.cursor;
+  return feedFilter(r.feed).map(i => postHTML(i)).join('');
+}
+async function load() {
+  await settings();
+  const s = await sess();
+  feeds = [];
+  if (s) {
+    feeds.push({ id: 'following', name: 'Following' });
+    try {
+      const prefs = (await call('app.bsky.actor.getPreferences')).preferences;
+      const pinned = prefs.find(p => p.$type.includes('savedFeedsPrefV2'))?.items?.filter(i => i.pinned && i.type === 'feed').map(i => i.value) || [];
+      if (pinned.length) feeds.push(...(await call('app.bsky.feed.getFeedGenerators', { feeds: pinned })).feeds.map(f => ({ id: f.uri, name: f.displayName })));
+    } catch {}
+  }
+  if (!feeds.some(f => f.id === DISCOVER)) feeds.splice(s ? 1 : 0, 0, { id: DISCOVER, name: 'Discover' });
+  cur ||= S.startFeed === 'following' && s ? 'following' : DISCOVER;
+  $('#tabs').innerHTML = feeds.map(f => `<span class="tappable ${f.id === cur ? 'on' : ''}" data-f="${esc(f.id)}">${esc(f.name)}</span>`).join('');
+  try { $('#list').innerHTML = await page() || '<div class="center secondary">Nothing here yet.</div>'; } catch (e) { $('#list').innerHTML = errorHTML(e); }
+}
+$('#tabs').addEventListener('click', e => { const t = e.target.closest('[data-f]'); if (!t) return; cur = t.dataset.f; haptic('select'); scrollTo(0, 0); $('#list').innerHTML = '<div class="spinner"></div>'; load(); });
+wirePosts($('#list'));
+onNearEnd(async () => { if (cursor) $('#list').insertAdjacentHTML('beforeend', await page(cursor)); });
+fruitfox.ui.buttons(BUTTONS);
+fruitfox.on('refresh', load);
+load();
+</script>
