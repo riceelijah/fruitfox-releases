@@ -38,7 +38,7 @@ The templates live in Fruitfox's repo under `Fruitfox/Apps/_templates/`.
 
 | Call | What it does |
 |---|---|
-| `fetch(url, {method, headers, body})` | Request to one of `sites` with the user's cookies (from the app's data store; a container's when opened in one), no CORS. Resolves `{status, ok, headers, body, json()}`; cookies it sets are saved. Sends the web view's User-Agent. |
+| `fetch(url, {method, headers, body, cookies})` | Request to one of `sites` with the user's cookies (from the app's data store; a container's when opened in one), no CORS. Resolves `{status, ok, headers, body, json()}`; cookies it sets are saved. Sends the web view's User-Agent. `cookies: false` sends it signed out (some APIs refuse an app client with web cookies). |
 | `cookie(name, site)` | A cookie's value (CSRF tokens, the user id). |
 | `media(url)` | A URL for `<img src>`/`<video src>` that works even when the site only lets its own pages show a file (`Cross-Origin-Resource-Policy: same-origin`, e.g. Instagram profile pictures). |
 | `storage.get(key)` / `set(key, value)` | Per app (and per container), JSON. |
@@ -51,9 +51,9 @@ The templates live in Fruitfox's repo under `Fruitfox/Apps/_templates/`.
 | `ui.menu([{id, title, destructive}], title)` | Native action sheet → chosen id or null. |
 | `ui.toast`, `ui.haptic('light'|'select'|'success'|'error')`, `ui.share(urlOrText)` | |
 | `ui.open(url)` | Closes the app and opens the URL in a browser tab. Web links clicked in a page do this too. |
-| `ui.web(url)` | Any page of the app's sites in a sheet, signed in, for what the app can't do itself (Instagram replies); resolves on Done. |
+| `ui.web(url, {embedFrom})` | Any https page in a sheet (the app's sites signed in); resolves on Done. With `embedFrom: 'https://some.site/'` it's shown in a frame on a page from that origin, for players that only play embedded (YouTube's). |
 | `ui.signIn(url)` | Shows the site's own login page in a sheet (the user types their password; the app never sees it); resolves on Done. |
-| `ui.push(screen)`, `ui.sheet(screen)` | A native SwiftUI list: `{title, sections: [{header, footer, rows: [{id, type: 'row'|'toggle'|'button'|'input', title, subtitle, value, symbol, destructive, placeholder}]}]}`. Actions fire `on('screen', json)` with `{id, action: 'tap'|'change'|'input', value}`. |
+| `ui.push(screen)`, `ui.sheet(screen)` | A native SwiftUI list (`type: 'feed'` for a plain, edge-to-edge one). Rows: `row`, `toggle`, `button`, `input` (with `placeholder`, labeled), `picker` (`options`, `labels`), `post` (`avatar`, `images`, `aspect`, `text`, `footer`, `liked`, `saved`; fires like/comment/send/save/author/more): `{title, sections: [{header, footer, rows: [{id, type: 'row'|'toggle'|'button'|'input', title, subtitle, value, symbol, destructive, placeholder}]}]}`. Actions fire `on('screen', json)` with `{id, action: 'tap'|'change'|'input', value}`. |
 | `ai.available()`, `ai.prompt(text, {system})`, `ai.summarize(text)` | The on-device model (Apple Intelligence). |
 | `notify({title, body, url, tag})` | A notification; tapping it opens the app (`initialURL()` gives the url). Same `tag` replaces the last one. |
 | `initialURL()` | The link or notification URL the app was opened from, or null. |
