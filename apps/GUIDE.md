@@ -26,6 +26,14 @@ _kit/bridge.js          window.fruitfox (injected into every page; don't include
   `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/_kit/kit.css">`
 - Fruitfox draws the frame (navigation bar with the title and back button, tab bar, sheets); pages draw only their content.
 
+## Starting from a template
+
+Settings › Apps › New App from Template makes an app without AI, to use as is or as a start:
+- **Feed** and **List from JSON** (`list/`): `index.html` lists items from the link in `config.json` (`{"url", "type": "rss" | "json", "items", "title", "subtitle", "image", "link"}`; JSON fields are dotted paths like `data.children` or `images.0.url`). Feed items open `article.html`, which shows the item's HTML with scripts, frames and event handlers removed.
+- **Blank** (`blank/`): one page to write yourself.
+
+The templates live in Fruitfox's repo under `Fruitfox/Apps/_templates/`.
+
 ## The bridge (`fruitfox.*`)
 
 | Call | What it does |
